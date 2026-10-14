@@ -327,3 +327,39 @@ class LGRobokingAPI:
                     f"청소 모드 변경 실패 (HTTP {resp.status}, 코드 {result_code}): {data}"
                 )
             return data
+
+    async def async_wake_up(self) -> dict[str, Any]:
+        """Send WakeUp command to wake robot vacuum from sleep mode."""
+        token, user_no = await self.async_get_access_token()
+        session = await self._get_session()
+        url = f"{DEVICE_BASE_URL}/{self.device_id}/control-sync"
+        headers = self._build_service_headers(token, user_no)
+        headers["content-type"] = "application/json;charset=UTF-8"
+
+        payload = {
+            "ctrlKey": "ConfigRK",
+            "command": "Set",
+            "dataKey": None,
+            "dataValue": "WakeUp",
+            "dataGetList": None,
+        }
+
+        async with session.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=aiohttp.ClientTimeout(total=15),
+        ) as resp:
+            text = await resp.text()
+            try:
+                data = json.loads(text)
+            except Exception:
+                data = {"raw": text}
+
+            result_code = data.get("resultCode")
+            if resp.status != 200 or (result_code and result_code != "0000"):
+                raise LGRobokingApiError(
+                    f"절전모드 해제 실패 (HTTP {resp.status}, 코드 {result_code}): {data}"
+                )
+            return data
+

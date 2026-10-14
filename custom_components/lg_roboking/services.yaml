@@ -16,3 +16,8 @@ set_clean_mode:
               value: "SUCTION"
             - label: "물걸레 (MOP)"
               value: "MOP"
+
+wake_up:
+  name: 로보킹 절전모드 해제
+  description: 절전 상태에 들어간 로보킹을 원격으로 깨워 온라인 상태로 복귀시킵니다.
+

@@ -22,13 +22,23 @@
 | 구분 | ID | 설명 |
 | :--- | :--- | :--- |
 | **Select** | `select.lg_roboking_mode` | `먼지 흡입 + 물걸레` (`ALL`), `먼지 흡입` (`SUCTION`), `물걸레` (`MOP`) 선택 및 상태 표시 |
+| **Button** | `button.lg_roboking_wake_up` | 절전 모드에 들어간 로보킹을 원격으로 깨움 (공식 `WakeUp` API) |
 | **Button** | `button.lg_roboking_sync_from_cloud` | LG ThinQ 클라우드에서 현재 설정된 청소 방식을 즉시 다시 읽어옴 |
+| **Service** | `lg_roboking.wake_up` | 로보킹 절전 모드 해제 호출 |
 | **Service** | `lg_roboking.set_clean_mode` | `mode: ALL / SUCTION / MOP` 파라미터로 청소 방식을 직접 변경 |
 
 ## 외출 자동화 예시 (화/금 물걸레+흡입, 월/수/목 흡입 전용)
 
 ```yaml
 actions:
+  # 1) 절전모드 해제 (WakeUp)
+  - action: button.press
+    target:
+      entity_id: button.lg_roboking_wake_up
+  - delay:
+      seconds: 3
+
+  # 2) 요일별 청소 모드 변경
   - action: select.select_option
     target:
       entity_id: select.lg_roboking_mode
@@ -36,15 +46,13 @@ actions:
       option: "{% if now().weekday() in [1, 4] %}먼지 흡입 + 물걸레{% else %}먼지 흡입{% endif %}"
   - delay:
       seconds: 5
-  - action: vacuum.start
-    target:
-      entity_id: vacuum.robosceongsogi
-  - delay:
-      seconds: 10
+
+  # 3) 청소 시작
   - action: vacuum.start
     target:
       entity_id: vacuum.robosceongsogi
 ```
+
 
 ## 주의사항
 

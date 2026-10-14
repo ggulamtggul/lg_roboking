@@ -107,3 +107,8 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if "snapshot" in current and isinstance(current["snapshot"], dict):
             current["snapshot"] = {**current["snapshot"], "CLEAN_TYPE": clean_type.upper()}
         self.async_set_updated_data(current)
+
+    async def async_wake_up(self) -> None:
+        """Send WakeUp command to LG ThinQ cloud to wake the robot vacuum."""
+        await self.api.async_wake_up()
+

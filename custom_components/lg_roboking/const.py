@@ -37,4 +37,5 @@ LABEL_TO_CLEAN_TYPE: dict[str, str] = {v: k for k, v in CLEAN_TYPE_TO_LABEL.item
 CLEAN_TYPE_OPTIONS: list[str] = list(CLEAN_TYPE_TO_LABEL.values())
 
 SERVICE_SET_CLEAN_MODE = "set_clean_mode"
+SERVICE_WAKE_UP = "wake_up"
 ATTR_MODE = "mode"

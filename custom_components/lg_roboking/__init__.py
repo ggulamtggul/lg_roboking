@@ -15,6 +15,7 @@ from .const import (
     LABEL_TO_CLEAN_TYPE,
     PLATFORMS,
     SERVICE_SET_CLEAN_MODE,
+    SERVICE_WAKE_UP,
 )
 from .coordinator import LGRobokingCoordinator
 from . import select, button
@@ -56,6 +57,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             async_handle_set_clean_mode,
             schema=SERVICE_SET_MODE_SCHEMA,
         )
+
+    if not hass.services.has_service(DOMAIN, SERVICE_WAKE_UP):
+        async def async_handle_wake_up(call: ServiceCall) -> None:
+            for coord in hass.data.get(DOMAIN, {}).values():
+                if isinstance(coord, LGRobokingCoordinator):
+                    await coord.async_wake_up()
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_WAKE_UP,
+            async_handle_wake_up,
+        )
+
 
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True

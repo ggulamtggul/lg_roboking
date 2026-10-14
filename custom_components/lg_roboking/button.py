@@ -17,9 +17,12 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the LG Roboking Button entity."""
+    """Set up the LG Roboking Button entities."""
     coordinator: LGRobokingCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([LGRobokingSyncButton(coordinator, entry)])
+    async_add_entities([
+        LGRobokingSyncButton(coordinator, entry),
+        LGRobokingWakeUpButton(coordinator, entry),
+    ])
 
 
 class LGRobokingSyncButton(CoordinatorEntity[LGRobokingCoordinator], ButtonEntity):
@@ -50,3 +53,34 @@ class LGRobokingSyncButton(CoordinatorEntity[LGRobokingCoordinator], ButtonEntit
     async def async_press(self) -> None:
         """Handle the button press to sync latest CLEAN_TYPE from LG cloud."""
         await self.coordinator.async_request_refresh()
+
+
+class LGRobokingWakeUpButton(CoordinatorEntity[LGRobokingCoordinator], ButtonEntity):
+    """Button to wake up LG Roboking from sleep mode."""
+
+    _attr_has_entity_name = False
+    _attr_name = "로보킹 절전모드 해제"
+    _attr_icon = "mdi:power-sleep"
+
+    def __init__(self, coordinator: LGRobokingCoordinator, entry: ConfigEntry) -> None:
+        """Initialize the wake up button."""
+        super().__init__(coordinator)
+        self._device_id = entry.data[CONF_DEVICE_ID]
+        self._attr_unique_id = f"{self._device_id}_wake_up"
+        self.entity_id = "button.lg_roboking_wake_up"
+
+    @property
+    def device_info(self) -> DeviceInfo:
+        """Return device registry information."""
+        model = (self.coordinator.data or {}).get("model_name", "B-95AW.CKOR")
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._device_id)},
+            name="LG 코드제로 로보킹 AI 올인원",
+            manufacturer="LG Electronics",
+            model=model,
+        )
+
+    async def async_press(self) -> None:
+        """Handle the button press to wake up LG Roboking."""
+        await self.coordinator.async_wake_up()
+
