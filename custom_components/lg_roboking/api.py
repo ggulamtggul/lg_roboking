@@ -229,7 +229,7 @@ class LGRobokingAPI:
                 model_name = str(item.get("modelName", ""))
                 alias = str(item.get("alias", "로보킹"))
                 dev_id = item.get("deviceId")
-                if dev_id and (dev_type in (201, "201") or "B-95" in model_name or "로보킹" in alias or "청소기" in alias):
+                if dev_id and (dev_type in (201, "201", 501, "501") or "B-95" in model_name or "로보킹" in alias or "청소기" in alias):
                     roboking_list.append({
                         "device_id": dev_id,
                         "alias": alias,
