@@ -1,0 +1,18 @@
+set_clean_mode:
+  name: 로보킹 청소 방식 설정
+  description: LG ThinQ 클라우드를 통해 로보킹 청소 방식을 직접 변경합니다 (도킹 상태에서 사용).
+  fields:
+    mode:
+      name: 청소 방식
+      description: "ALL (먼지 흡입 + 물걸레), SUCTION (먼지 흡입), MOP (물걸레) 또는 한글 명칭"
+      required: true
+      example: "ALL"
+      selector:
+        select:
+          options:
+            - label: "먼지 흡입 + 물걸레 (ALL)"
+              value: "ALL"
+            - label: "먼지 흡입 (SUCTION)"
+              value: "SUCTION"
+            - label: "물걸레 (MOP)"
+              value: "MOP"

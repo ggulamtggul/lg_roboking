@@ -1,0 +1,13 @@
+{
+  "domain": "lg_roboking",
+  "name": "LG 로보킹 AI 올인원",
+  "codeowners": [
+    "@ggulamtggul"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/ggulamtggul/lg_roboking",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/ggulamtggul/lg_roboking/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}
