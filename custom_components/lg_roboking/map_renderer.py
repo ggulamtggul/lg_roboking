@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from io import BytesIO
 import math
+import re
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
@@ -166,45 +167,31 @@ def decompress_from_base64(input_str: str) -> list[int]:
             num_bits += 1
 
 
-# Refined Roborock/ThinQ aesthetic pastel palette
-ROOM_PALETTE = [
-    (145, 175, 245, 235),  # Soft Periwinkle Blue
-    (245, 195, 95, 235),   # Soft Warm Amber
-    (240, 145, 140, 235),  # Soft Coral
-    (95, 210, 195, 235),   # Soft Mint / Teal
-    (225, 150, 215, 235),  # Soft Orchid
-    (150, 220, 145, 235),  # Soft Sage Green
-    (245, 170, 120, 235),  # Soft Peach
+# Official LG Roboking palette directly sampled from LG ThinQ app
+LG_OFFICIAL_ROOM_COLORS = {
+    3: (126, 99, 168, 255),   # Muted Purple (Room 3)
+    5: (162, 56, 110, 255),   # Deep Berry Magenta (Living room 5)
+    7: (183, 125, 66, 255),   # Warm Mustard Gold (Room 7)
+    8: (136, 123, 176, 255),  # Soft Lavender / Periwinkle (Hallway 8)
+    10: (72, 155, 184, 255),  # Teal Cyan (Room 10)
+}
+
+FALLBACK_PALETTE = [
+    (189, 90, 56, 255),   # Terracotta Red-Orange
+    (162, 56, 110, 255),  # Berry Magenta
+    (126, 99, 168, 255),  # Muted Purple
+    (183, 125, 66, 255),  # Mustard Gold
+    (72, 155, 184, 255),  # Teal Cyan
+    (136, 123, 176, 255), # Soft Lavender
 ]
 
 
-def _get_font(size: int) -> ImageFont.ImageFont:
-    """Safely obtain a clean TrueType font across Windows and Linux."""
-    font_paths = [
-        "C:/Windows/Fonts/malgun.ttf",
-        "C:/Windows/Fonts/segoeui.ttf",
-        "C:/Windows/Fonts/arial.ttf",
-        "/usr/share/fonts/truetype/nanum/NanumGothic.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-    ]
-    for path in font_paths:
-        try:
-            return ImageFont.truetype(path, size)
-        except Exception:
-            continue
-    return ImageFont.load_default()
-
-
 def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
-    """Render LG Roboking map snapshot to clean, proportional PNG bytes."""
+    """Render LG Roboking map snapshot to 1:1 official LG app aesthetic PNG."""
     rt_map = snapshot.get("RT_MAP") or {}
     rt_map_l = rt_map.get("RT_MAP_L")
     if not rt_map_l:
-        img = Image.new("RGBA", (400, 300), (22, 23, 27, 255))
-        draw = ImageDraw.Draw(img)
-        font = _get_font(14)
-        draw.text((145, 135), "No Map Data", fill=(180, 180, 180, 255), font=font)
+        img = Image.new("RGBA", (400, 300), (0, 0, 0, 255))
         buf = BytesIO()
         img.save(buf, format="PNG")
         return buf.getvalue()
@@ -222,38 +209,22 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
         else:
             grid = grid[:width * height]
 
-    # Calculate bounding box of rooms and walls to crop blank margins
-    min_gx, max_gx = width, 0
-    min_gy, max_gy = height, 0
-    has_content = False
-
-    for idx, val in enumerate(grid):
-        if val != 0:
-            gx = idx % width
-            gy = idx // width
-            draw_y = height - 1 - gy
-            if gx < min_gx:
-                min_gx = gx
-            if gx > max_gx:
-                max_gx = gx
-            if draw_y < min_gy:
-                min_gy = draw_y
-            if draw_y > max_gy:
-                max_gy = draw_y
-            has_content = True
-
     SCALE = 3
     canvas_w = width * SCALE
     canvas_h = height * SCALE
 
-    # Clean dark modern background (#1A1B20)
-    base_img = Image.new("RGBA", (canvas_w, canvas_h), (26, 27, 32, 255))
-
-    room_map: dict[int, tuple[int, int, int, int]] = {}
-    palette_idx = 0
+    # Pitch black background matching LG official app
+    base_img = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 255))
 
     grid_img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     pixels = grid_img.load()
+
+    min_gx, max_gx = width, 0
+    min_gy, max_gy = height, 0
+    has_content = False
+
+    palette_idx = 0
+    assigned_rooms: dict[int, tuple[int, int, int, int]] = {}
 
     for idx, val in enumerate(grid):
         x = idx % width
@@ -263,20 +234,36 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
         if val == 0:
             pixels[x, draw_y] = (0, 0, 0, 0)
         elif val == 255:
-            # Wall boundary (#383A42)
-            pixels[x, draw_y] = (56, 58, 66, 255)
-        elif val == 127:
-            # Passed area
-            pixels[x, draw_y] = (255, 255, 255, 140)
-        elif val == 177:
-            # Passed area carpet
-            pixels[x, draw_y] = (235, 220, 180, 160)
+            # Wall boundary (#2D2F36)
+            pixels[x, draw_y] = (45, 47, 54, 255)
+            if x < min_gx:
+                min_gx = x
+            if x > max_gx:
+                max_gx = x
+            if draw_y < min_gy:
+                min_gy = draw_y
+            if draw_y > max_gy:
+                max_gy = draw_y
+            has_content = True
         else:
             room_id = val - 50 if val > 50 else val
-            if room_id not in room_map:
-                room_map[room_id] = ROOM_PALETTE[palette_idx % len(ROOM_PALETTE)]
-                palette_idx += 1
-            pixels[x, draw_y] = room_map[room_id]
+            if room_id in LG_OFFICIAL_ROOM_COLORS:
+                c = LG_OFFICIAL_ROOM_COLORS[room_id]
+            else:
+                if room_id not in assigned_rooms:
+                    assigned_rooms[room_id] = FALLBACK_PALETTE[palette_idx % len(FALLBACK_PALETTE)]
+                    palette_idx += 1
+                c = assigned_rooms[room_id]
+            pixels[x, draw_y] = c
+            if x < min_gx:
+                min_gx = x
+            if x > max_gx:
+                max_gx = x
+            if draw_y < min_gy:
+                min_gy = draw_y
+            if draw_y > max_gy:
+                max_gy = draw_y
+            has_content = True
 
     grid_scaled = grid_img.resize((canvas_w, canvas_h), Image.Resampling.NEAREST)
     base_img.alpha_composite(grid_scaled)
@@ -288,111 +275,134 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
         py = (height - (((pos_y_mm / 1000.0) - y_min) / resolution)) * SCALE
         return px, py
 
-    # 1. Virtual Walls and Restricted Areas (VW)
+    # 1. Cleaning Trajectory Lines (Collect all chunks RTW, RTW1, RTW2, RTW3... in exact numerical order)
+    rtw_keys: list[tuple[int, str]] = []
+    for k in snapshot.keys():
+        if k == "RTW" and isinstance(snapshot[k], list):
+            rtw_keys.append((0, k))
+        elif k.startswith("RTW"):
+            m = re.match(r"RTW(\d+)", k)
+            if m:
+                rtw_keys.append((int(m.group(1)), k))
+    rtw_keys.sort(key=lambda item: item[0])
+
+    all_path_points: list[Any] = []
+    for _, key in rtw_keys:
+        chunk = snapshot[key]
+        if isinstance(chunk, list):
+            all_path_points.extend(chunk)
+
+    if all_path_points:
+        current_segment: list[tuple[float, float]] = []
+        prev_p: tuple[float, float] | None = None
+
+        for pt in all_path_points:
+            if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+                p = mm_to_canvas(pt[0], pt[1])
+                if prev_p is not None:
+                    dist = math.hypot(p[0] - prev_p[0], p[1] - prev_p[1])
+                    if dist > 35 * SCALE / 3:
+                        if len(current_segment) >= 2:
+                            draw.line(current_segment, fill=(255, 255, 255, 185), width=1)
+                        current_segment = [p]
+                    else:
+                        current_segment.append(p)
+                else:
+                    current_segment.append(p)
+                prev_p = p
+
+        if len(current_segment) >= 2:
+            draw.line(current_segment, fill=(255, 255, 255, 185), width=1)
+
+    # 2. Virtual Walls & Restricted Areas (VW)
+    # Fully transparent fill with crisp orange-red border line (2px)
     vw = snapshot.get("VW") or {}
     for poly in vw.get("VERTX") or []:
         if len(poly) >= 3:
             pts = [mm_to_canvas(pt[0], pt[1]) for pt in poly]
-            # Soft red transparent tint with thin boundary line
-            draw.polygon(pts, fill=(235, 50, 50, 38), outline=(235, 60, 60, 180), width=1)
-            min_px = min(p[0] for p in pts)
-            max_px = max(p[0] for p in pts)
-            min_py = min(p[1] for p in pts)
-            max_py = max(p[1] for p in pts)
-            if min_px / SCALE < min_gx:
-                min_gx = max(0, int(min_px / SCALE))
-            if max_px / SCALE > max_gx:
-                max_gx = min(width - 1, int(max_px / SCALE))
-            if min_py / SCALE < min_gy:
-                min_gy = max(0, int(min_py / SCALE))
-            if max_py / SCALE > max_gy:
-                max_gy = min(height - 1, int(max_py / SCALE))
+            draw.polygon(pts, fill=None, outline=(235, 75, 30, 255), width=2)
+            for p in pts:
+                if p[0] / SCALE < min_gx:
+                    min_gx = max(0, int(p[0] / SCALE))
+                if p[0] / SCALE > max_gx:
+                    max_gx = min(width - 1, int(p[0] / SCALE))
+                if p[1] / SCALE < min_gy:
+                    min_gy = max(0, int(p[1] / SCALE))
+                if p[1] / SCALE > max_gy:
+                    max_gy = min(height - 1, int(p[1] / SCALE))
 
     for line in vw.get("VLINE") or []:
         if len(line) >= 2:
             p1 = mm_to_canvas(line[0][0], line[0][1])
             p2 = mm_to_canvas(line[1][0], line[1][1])
-            draw.line([p1, p2], fill=(240, 50, 50, 220), width=2)
+            draw.line([p1, p2], fill=(235, 75, 30, 255), width=2)
 
-    # 2. Cleaning Trajectory (RTW)
-    rtw = snapshot.get("RTW")
-    if rtw and isinstance(rtw, list) and len(rtw) > 1:
-        line_pts = []
-        for pt in rtw:
-            if isinstance(pt, (list, tuple)) and len(pt) >= 2:
-                line_pts.append(mm_to_canvas(pt[0], pt[1]))
-        if len(line_pts) >= 2:
-            draw.line(line_pts, fill=(255, 255, 255, 180), width=1)
-
-    # 3. Room labels / badges from FLOORMAP.AREA (Compact pill)
+    # 3. Sofa / Furniture Icons from FLOORMAP.AREA (Official app aesthetic)
     floormap = snapshot.get("FLOORMAP") or {}
-    badge_font = _get_font(11)
     for area in floormap.get("AREA") or []:
         pos = area.get("ICON_POS")
-        area_id = int(area.get("ID", 0))
         if pos and len(pos) >= 2:
             ax, ay = mm_to_canvas(pos[0], pos[1])
             if 0 <= ax < canvas_w and 0 <= ay < canvas_h:
-                br = 9
-                draw.ellipse([ax - br, ay - br, ax + br, ay + br], fill=(20, 22, 28, 190), outline=(255, 255, 255, 160), width=1)
-                num_str = str(area_id)
-                draw.text((ax - 3, ay - 6), num_str, fill=(255, 255, 255, 230), font=badge_font)
+                sw, sh = 18, 12
+                draw.rounded_rectangle(
+                    [ax - sw / 2, ay - sh / 2, ax + sw / 2, ay + sh / 2],
+                    radius=3,
+                    outline=(255, 255, 255, 110),
+                    width=1,
+                )
+                draw.line(
+                    [ax - sw / 2 + 3, ay - sh / 2, ax - sw / 2 + 3, ay + sh / 2],
+                    fill=(255, 255, 255, 90),
+                    width=1,
+                )
+                draw.line(
+                    [ax + sw / 2 - 3, ay - sh / 2, ax + sw / 2 - 3, ay + sh / 2],
+                    fill=(255, 255, 255, 90),
+                    width=1,
+                )
 
-    # 4. Dock Position (HOME_POS) - Compact stylish dock
+    # 4. Dock Position (HOME_POS) - Cyan circle with house shape inside
     home_pos = rt_map.get("HOME_POS") or snapshot.get("HOME_POS")
     if home_pos and len(home_pos) >= 2:
         hx, hy = mm_to_canvas(home_pos[0], home_pos[1])
-        dw, dh = 14, 10
-        draw.rounded_rectangle([hx - dw/2, hy - dh/2, hx + dw/2, hy + dh/2], radius=3, fill=(40, 195, 110, 240), outline=(255, 255, 255, 230), width=1)
-        draw.line([hx - 4, hy, hx + 4, hy], fill=(255, 255, 255, 255), width=2)
+        dock_r = 10
+        draw.ellipse(
+            [hx - dock_r, hy - dock_r, hx + dock_r, hy + dock_r],
+            fill=(0, 165, 196, 255),
+            outline=(255, 255, 255, 230),
+            width=1,
+        )
+        draw.polygon([(hx, hy - 5), (hx - 5, hy), (hx + 5, hy)], fill=(255, 255, 255, 255))
+        draw.rectangle([hx - 4, hy, hx + 4, hy + 5], fill=(255, 255, 255, 255))
 
-    # 5. Robot Current Pose (RT_POSE) - Proportional high-tech circular marker
+    # 5. Robot Current Pose (RT_POSE) - Official style robot marker
     rt_pose = snapshot.get("RT_POSE") or {}
     cur_pos = rt_pose.get("CUR_POS")
     if cur_pos and len(cur_pos) >= 2:
         rx, ry = mm_to_canvas(cur_pos[0], cur_pos[1])
-        bot_r = 10  # Crisp proportional size
-        
-        draw.ellipse([rx - bot_r - 4, ry - bot_r - 4, rx + bot_r + 4, ry + bot_r + 4], fill=(0, 140, 255, 60))
-        draw.ellipse([rx - bot_r, ry - bot_r, rx + bot_r, ry + bot_r], fill=(0, 130, 250, 240), outline=(255, 255, 255, 255), width=2)
-        draw.ellipse([rx - 3, ry - 3, rx + 3, ry + 3], fill=(255, 255, 255, 230))
-        
+        bot_r = 11
+        draw.ellipse([rx - bot_r - 3, ry - bot_r - 3, rx + bot_r + 3, ry + bot_r + 3], fill=(0, 160, 255, 70))
+        draw.ellipse([rx - bot_r, ry - bot_r, rx + bot_r, ry + bot_r], fill=(245, 245, 250, 255), outline=(0, 140, 255, 255), width=2)
+        draw.ellipse([rx - 3, ry - 3, rx + 3, ry + 3], fill=(0, 140, 255, 255))
+
         theta_raw = cur_pos[2] if len(cur_pos) > 2 else 0.0
         deg = theta_raw if abs(theta_raw) <= 360 else (theta_raw / 1000.0) * (180.0 / math.pi)
         rad = math.radians(-deg)
-        
-        tip_dist = bot_r + 7
-        tip_x = rx + tip_dist * math.cos(rad)
-        tip_y = ry + tip_dist * math.sin(rad)
-        
-        left_rad = rad + math.radians(140)
-        right_rad = rad - math.radians(140)
-        wing_dist = bot_r - 2
-        lx = rx + wing_dist * math.cos(left_rad)
-        ly = ry + wing_dist * math.sin(left_rad)
-        rx_p = rx + wing_dist * math.cos(right_rad)
-        ry_p = ry + wing_dist * math.sin(right_rad)
-        
-        draw.polygon([(tip_x, tip_y), (lx, ly), (rx, ry), (rx_p, ry_p)], fill=(255, 225, 60, 240))
 
-    # Auto-crop with comfortable 25px padding around rooms and walls
+        tip_x = rx + (bot_r + 6) * math.cos(rad)
+        tip_y = ry + (bot_r + 6) * math.sin(rad)
+        draw.line([rx, ry, tip_x, tip_y], fill=(0, 140, 255, 255), width=2)
+        draw.ellipse([tip_x - 2, tip_y - 2, tip_x + 2, tip_y + 2], fill=(255, 200, 0, 255))
+
+    # Auto-crop with 20px padding around content
     if has_content and max_gx > min_gx and max_gy > min_gy:
-        crop_pad = 25
+        crop_pad = 20
         cx1 = max(0, min_gx * SCALE - crop_pad)
         cy1 = max(0, min_gy * SCALE - crop_pad)
         cx2 = min(canvas_w, (max_gx + 1) * SCALE + crop_pad)
         cy2 = min(canvas_h, (max_gy + 1) * SCALE + crop_pad)
         base_img = base_img.crop((cx1, cy1, cx2, cy2))
-
-    # Modern Top-Left Status Pill Badge
-    draw_cropped = ImageDraw.Draw(base_img, "RGBA")
-    status_font = _get_font(12)
-    cur_room = int(rt_map.get("CUR_ROOMID", 0))
-    sweep_area = rt_map.get("SWEEP_AREA", 0)
-    info_text = f"Room {cur_room}  |  {sweep_area} m²"
-    
-    draw_cropped.rounded_rectangle([12, 12, 140, 36], radius=8, fill=(15, 17, 22, 210), outline=(255, 255, 255, 70), width=1)
-    draw_cropped.text((22, 16), info_text, fill=(240, 240, 245, 240), font=status_font)
 
     buf = BytesIO()
     base_img.save(buf, format="PNG")
