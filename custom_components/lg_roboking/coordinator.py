@@ -192,7 +192,7 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 except Exception as err:
                     _LOGGER.debug("Map heartbeat loop cycle exception: %s", err)
 
-                await asyncio.sleep(self.map_refresh_seconds)
+                await asyncio.sleep(min(2, self.map_refresh_seconds))
         except asyncio.CancelledError:
             pass
         finally:
@@ -228,8 +228,9 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def async_get_or_render_map(self) -> bytes:
         """Return latest map PNG bytes, refreshing on-demand if cache is stale."""
         now = time.time()
-        # If cache is older than map_refresh_seconds and robot is active, refresh immediately
-        if (now - self.last_map_update_timestamp) >= self.map_refresh_seconds:
+        # If cache is older than 1.5s (during active cleaning) or map_refresh_seconds, refresh immediately
+        refresh_threshold = 1.5 if self.is_robot_active() else self.map_refresh_seconds
+        if (now - self.last_map_update_timestamp) >= refresh_threshold:
             await self.async_refresh_live_map()
 
         if self.last_rendered_map_png:
