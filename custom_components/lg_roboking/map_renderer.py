@@ -275,7 +275,7 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
         py = (height - (((pos_y_mm / 1000.0) - y_min) / resolution)) * SCALE
         return px, py
 
-    # 1. Cleaning Trajectory Lines (Collect all chunks RTW, RTW1, RTW2, RTW3... in exact numerical order)
+    # 1. Cleaning Trajectory Lines (Only CLEAN_PATH 1.0, skip navigation/teleport lines)
     rtw_keys: list[tuple[int, str]] = []
     for k in snapshot.keys():
         if k == "RTW" and isinstance(snapshot[k], list):
@@ -286,33 +286,45 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
                 rtw_keys.append((int(m.group(1)), k))
     rtw_keys.sort(key=lambda item: item[0])
 
-    all_path_points: list[Any] = []
+    MAX_JUMP_PX = 18.0
+
     for _, key in rtw_keys:
         chunk = snapshot[key]
-        if isinstance(chunk, list):
-            all_path_points.extend(chunk)
+        if not isinstance(chunk, list):
+            continue
 
-    if all_path_points:
         current_segment: list[tuple[float, float]] = []
         prev_p: tuple[float, float] | None = None
 
-        for pt in all_path_points:
-            if isinstance(pt, (list, tuple)) and len(pt) >= 2:
-                p = mm_to_canvas(pt[0], pt[1])
-                if prev_p is not None:
-                    dist = math.hypot(p[0] - prev_p[0], p[1] - prev_p[1])
-                    if dist > 35 * SCALE / 3:
-                        if len(current_segment) >= 2:
-                            draw.line(current_segment, fill=(255, 255, 255, 185), width=1)
-                        current_segment = [p]
-                    else:
-                        current_segment.append(p)
+        for pt in chunk:
+            if not isinstance(pt, (list, tuple)) or len(pt) < 2:
+                continue
+
+            pt_type = pt[2] if len(pt) > 2 else 1.0
+            p = mm_to_canvas(pt[0], pt[1])
+
+            # ONLY draw CLEAN_PATH (1.0). Skip navigation transitions (2.0) and escapes (4.0)
+            if pt_type != 1.0:
+                if len(current_segment) >= 2:
+                    draw.line(current_segment, fill=(255, 255, 255, 190), width=1)
+                current_segment = []
+                prev_p = None
+                continue
+
+            if prev_p is not None:
+                dist = math.hypot(p[0] - prev_p[0], p[1] - prev_p[1])
+                if dist > MAX_JUMP_PX:
+                    if len(current_segment) >= 2:
+                        draw.line(current_segment, fill=(255, 255, 255, 190), width=1)
+                    current_segment = [p]
                 else:
                     current_segment.append(p)
-                prev_p = p
+            else:
+                current_segment.append(p)
+            prev_p = p
 
         if len(current_segment) >= 2:
-            draw.line(current_segment, fill=(255, 255, 255, 185), width=1)
+            draw.line(current_segment, fill=(255, 255, 255, 190), width=1)
 
     # 2. Virtual Walls & Restricted Areas (VW)
     # Fully transparent fill with crisp orange-red border line (2px)

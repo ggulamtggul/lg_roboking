@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.camera import Camera
+from homeassistant.components.camera import Camera, CameraEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -34,6 +34,7 @@ class LGRobokingMapCamera(CoordinatorEntity[LGRobokingCoordinator], Camera):
     _attr_name = "로보킹 맵"
     _attr_icon = "mdi:map-legend"
     _attr_content_type = "image/png"
+    _attr_frame_interval = 1.0
 
     def __init__(self, coordinator: LGRobokingCoordinator, entry: ConfigEntry) -> None:
         """Initialize the map camera entity."""
@@ -53,6 +54,16 @@ class LGRobokingMapCamera(CoordinatorEntity[LGRobokingCoordinator], Camera):
             manufacturer="LG Electronics",
             model=model,
         )
+
+    @property
+    def is_streaming(self) -> bool:
+        """Return True if robot is actively cleaning and map is streaming."""
+        return self.coordinator.is_robot_active()
+
+    @property
+    def is_recording(self) -> bool:
+        """Return True if robot is active."""
+        return self.coordinator.is_robot_active()
 
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
@@ -80,5 +91,6 @@ class LGRobokingMapCamera(CoordinatorEntity[LGRobokingCoordinator], Camera):
             "dock_position": rt_map.get("HOME_POS"),
             "restricted_zones_count": vw.get("NUM", 0),
             "is_cleaning": self.coordinator.is_robot_active(),
+            "last_map_update": self.coordinator.last_map_update_timestamp,
             "device_id": self._device_id,
         }

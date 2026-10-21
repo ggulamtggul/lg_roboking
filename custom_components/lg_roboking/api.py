@@ -391,6 +391,21 @@ class LGRobokingAPI:
         }
         return await self.async_post_control(payload, sync=True)
 
+    async def async_start_map_stream(self, poscnt: int = 0, posidx: int = 0) -> dict[str, Any]:
+        """Send SetR5RTMapUpdate (CMD: UPDATE_DATA) to activate live coordinate streaming on LG cloud."""
+        payload = {
+            "ctrlKey": "Control",
+            "command": "RTMAP",
+            "dataKey": None,
+            "dataSetList": {
+                "CMD": "UPDATE_DATA",
+                "POSCNT": str(poscnt),
+                "POSIDX": str(posidx),
+            },
+            "dataGetList": None,
+        }
+        return await self.async_post_control(payload, sync=False)
+
     async def async_send_map_heartbeat(self) -> dict[str, Any]:
         """Send RTMAP HEARTBEAT to keep the live map streaming session alive."""
         payload = {

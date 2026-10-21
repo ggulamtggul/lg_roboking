@@ -64,14 +64,16 @@
 
 ## 💡 대시보드 Lovelace 카드 구성 예시
 
-### 실시간 맵 카드
+### 실시간 맵 카드 (실시간 스트리밍 모드)
 ```yaml
 type: picture-entity
 entity: camera.roboking_map
+name: 우리집 청소 현황
 show_state: false
 show_name: true
-name: 우리집 청소 현황
+camera_view: live
 ```
+> **TIP**: `camera_view: live` 설정을 주셔야 브라우저가 정지 화면으로 캐시하지 않고 청소 중 실시간으로 로봇 위치와 맵을 연속 갱신합니다.
 
 ### 올인원 제어 카드 (Entities 카드)
 ```yaml

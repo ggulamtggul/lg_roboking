@@ -6,11 +6,11 @@ from datetime import timedelta
 import json
 import logging
 import os
+import time
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import LGRobokingAPI, LGRobokingApiError, LGRobokingAuthError
@@ -65,8 +65,8 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
 
         self.last_rendered_map_png: bytes | None = None
+        self.last_map_update_timestamp: float = 0.0
         self._map_loop_task: asyncio.Task | None = None
-        self._unsub_map_interval: Any = None
         self._is_closed = False
 
         super().__init__(
@@ -111,13 +111,13 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             status = await self.api.async_get_device_status(force_token_refresh=True)
             snapshot = status.get("snapshot", {})
-            
-            # Asynchronously render map PNG in executor
+
             if "RT_MAP" in snapshot:
                 try:
                     self.last_rendered_map_png = await self.hass.async_add_executor_job(
                         render_roboking_map, snapshot
                     )
+                    self.last_map_update_timestamp = time.time()
                 except Exception as err:
                     _LOGGER.warning("Error rendering Roboking map image: %s", err)
 
@@ -132,8 +132,7 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Return True if robot is actively cleaning or moving."""
         data = status or self.data or {}
         snapshot = data.get("snapshot", {})
-        robot_state = str(snapshot.get("ROBOT_STATE", "")).upper()
-        # Non-active states: STANDBY, CHARGING, SLEEP, POWER_OFF
+        robot_state = str(snapshot.get("ROBOT_STATE", "")).upper().strip()
         inactive_states = ("STANDBY", "CHARGING", "SLEEP", "POWER_OFF", "")
         return robot_state not in inactive_states
 
@@ -144,10 +143,13 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         if self.is_robot_active(status):
             if self._map_loop_task is None or self._map_loop_task.done():
-                _LOGGER.info("Starting LG Roboking real-time map heartbeat loop (interval: %ds)", self.map_refresh_seconds)
+                _LOGGER.info(
+                    "Starting LG Roboking real-time map heartbeat loop (interval: %ds)",
+                    self.map_refresh_seconds,
+                )
                 self._map_loop_task = self.hass.async_create_background_task(
                     self._run_map_heartbeat_loop(),
-                    name=f"lg_roboking_map_loop_{self.entry.entry_id}"
+                    name=f"lg_roboking_map_loop_{self.entry.entry_id}",
                 )
         else:
             if self._map_loop_task and not self._map_loop_task.done():
@@ -156,8 +158,14 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._map_loop_task = None
 
     async def _run_map_heartbeat_loop(self) -> None:
-        """Send RTMAP heartbeat and fetch updated coordinates while robot is active."""
+        """Send UPDATE_DATA + RTMAP heartbeat and fetch updated coordinates while robot is active."""
         try:
+            # First activate streaming session on LG cloud
+            try:
+                await self.api.async_start_map_stream(0, 0)
+            except Exception as err:
+                _LOGGER.debug("Initial async_start_map_stream error: %s", err)
+
             while not self._is_closed:
                 try:
                     await self.api.async_send_map_heartbeat()
@@ -167,9 +175,9 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self.last_rendered_map_png = await self.hass.async_add_executor_job(
                             render_roboking_map, snapshot
                         )
+                        self.last_map_update_timestamp = time.time()
                     self.async_set_updated_data(status)
 
-                    # If robot became inactive during run, stop loop
                     if not self.is_robot_active(status):
                         _LOGGER.info("Robot finished cleaning, ending map heartbeat loop.")
                         break
@@ -185,14 +193,41 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         finally:
             self._map_loop_task = None
 
+    async def async_refresh_live_map(self) -> bytes:
+        """On-demand live map refresh triggered by Camera requests."""
+        try:
+            # Ensure session active
+            if self.is_robot_active():
+                await self.api.async_send_map_heartbeat()
+            status = await self.api.async_get_device_status(force_token_refresh=False)
+            snapshot = status.get("snapshot", {})
+            if "RT_MAP" in snapshot:
+                self.last_rendered_map_png = await self.hass.async_add_executor_job(
+                    render_roboking_map, snapshot
+                )
+                self.last_map_update_timestamp = time.time()
+            self.async_set_updated_data(status)
+            self._check_map_heartbeat_loop(status)
+        except Exception as err:
+            _LOGGER.debug("On-demand map refresh error: %s", err)
+
+        return self.last_rendered_map_png or b""
+
     async def async_get_or_render_map(self) -> bytes:
-        """Return latest map PNG bytes, rendering if not already cached."""
+        """Return latest map PNG bytes, refreshing on-demand if cache is stale."""
+        now = time.time()
+        # If cache is older than map_refresh_seconds and robot is active, refresh immediately
+        if (now - self.last_map_update_timestamp) >= self.map_refresh_seconds:
+            await self.async_refresh_live_map()
+
         if self.last_rendered_map_png:
             return self.last_rendered_map_png
+
         snapshot = (self.data or {}).get("snapshot", {})
         self.last_rendered_map_png = await self.hass.async_add_executor_job(
             render_roboking_map, snapshot
         )
+        self.last_map_update_timestamp = time.time()
         return self.last_rendered_map_png
 
     async def async_set_clean_type(self, clean_type: str) -> None:
