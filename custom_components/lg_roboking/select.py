@@ -168,7 +168,7 @@ class LGRobokingZzDistSelect(LGRobokingBaseSelect):
     def current_option(self) -> str | None:
         """Return current clean spacing in Korean."""
         raw_code = (self.coordinator.data or {}).get("zz_dist", "NORMAL")
-        return ZZ_DIST_TO_LABEL.get(raw_code, "보통")
+        return ZZ_DIST_TO_LABEL.get(raw_code, "기본")
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
