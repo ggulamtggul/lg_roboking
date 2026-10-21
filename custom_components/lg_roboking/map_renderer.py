@@ -393,21 +393,31 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
         if pos and len(pos) >= 2:
             ax, ay = mm_to_canvas(pos[0], pos[1])
             if 0 <= ax < canvas_w and 0 <= ay < canvas_h:
-                sw, sh = 18, 12
+                sw, sh = 20, 14
+                # Pill background with translucent dark fill for high contrast over rooms
                 draw.rounded_rectangle(
-                    [ax - sw / 2, ay - sh / 2, ax + sw / 2, ay + sh / 2],
-                    radius=3,
-                    outline=(255, 255, 255, 110),
+                    [ax - sw / 2 - 2, ay - sh / 2 - 2, ax + sw / 2 + 2, ay + sh / 2 + 2],
+                    radius=4,
+                    fill=(30, 32, 38, 160),
+                    outline=(255, 255, 255, 220),
+                    width=1,
+                )
+                # Inner sofa frame
+                draw.rounded_rectangle(
+                    [ax - sw / 2 + 2, ay - sh / 2 + 2, ax + sw / 2 - 2, ay + sh / 2 - 2],
+                    radius=2,
+                    outline=(255, 255, 255, 220),
+                    width=1,
+                )
+                # Sofa armrests
+                draw.line(
+                    [ax - sw / 2 + 5, ay - sh / 2 + 2, ax - sw / 2 + 5, ay + sh / 2 - 2],
+                    fill=(255, 255, 255, 220),
                     width=1,
                 )
                 draw.line(
-                    [ax - sw / 2 + 3, ay - sh / 2, ax - sw / 2 + 3, ay + sh / 2],
-                    fill=(255, 255, 255, 90),
-                    width=1,
-                )
-                draw.line(
-                    [ax + sw / 2 - 3, ay - sh / 2, ax + sw / 2 - 3, ay + sh / 2],
-                    fill=(255, 255, 255, 90),
+                    [ax + sw / 2 - 5, ay - sh / 2 + 2, ax + sw / 2 - 5, ay + sh / 2 - 2],
+                    fill=(255, 255, 255, 220),
                     width=1,
                 )
 
@@ -426,9 +436,15 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
         draw.rectangle([hx - 4, hy, hx + 4, hy + 5], fill=(255, 255, 255, 255))
 
     # 5. Robot Current Pose (RT_POSE) - Official style robot marker
+    # In official LG ThinQ app, when the robot is docked/charging/standby, the robot
+    # is docked at HOME_POS and the separate robot icon is hidden (only the dock is shown).
+    # This prevents showing a stale robot position in the last-cleaned room when it is actually charging.
+    robot_state = str(snapshot.get("ROBOT_STATE", "")).upper().strip()
+    show_robot = robot_state not in ("STANDBY", "CHARGING", "SLEEP", "POWER_OFF", "")
+
     rt_pose = snapshot.get("RT_POSE") or {}
     cur_pos = rt_pose.get("CUR_POS")
-    if cur_pos and len(cur_pos) >= 2:
+    if show_robot and cur_pos and len(cur_pos) >= 2:
         rx, ry = mm_to_canvas(cur_pos[0], cur_pos[1])
         bot_r = 11
         draw.ellipse([rx - bot_r - 3, ry - bot_r - 3, rx + bot_r + 3, ry + bot_r + 3], fill=(0, 160, 255, 70))

@@ -96,14 +96,18 @@ class LGRobokingMapCamera(CoordinatorEntity[LGRobokingCoordinator], Camera):
         rt_map = snapshot.get("RT_MAP", {})
         rt_pose = snapshot.get("RT_POSE", {})
         vw = snapshot.get("VW", {})
+        is_active = self.coordinator.is_robot_active()
+        home_pos = rt_map.get("HOME_POS")
+        # When docked (charging/standby), the physical robot position is home_pos
+        bot_pos = rt_pose.get("CUR_POS") if is_active else home_pos
 
         return {
             "current_room_id": rt_map.get("CUR_ROOMID"),
             "sweep_area_m2": rt_map.get("SWEEP_AREA"),
-            "robot_position": rt_pose.get("CUR_POS"),
-            "dock_position": rt_map.get("HOME_POS"),
+            "robot_position": bot_pos,
+            "dock_position": home_pos,
             "restricted_zones_count": vw.get("NUM", 0),
-            "is_cleaning": self.coordinator.is_robot_active(),
+            "is_cleaning": is_active,
             "robot_state": snapshot.get("ROBOT_STATE"),
             "last_map_update": self.coordinator.last_map_update_timestamp,
             "device_id": self._device_id,
