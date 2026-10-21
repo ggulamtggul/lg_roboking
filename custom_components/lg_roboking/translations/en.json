@@ -2,39 +2,41 @@
   "config": {
     "step": {
       "user": {
-        "title": "LG 로보킹 AI 올인원 (ThinQ Web) 연결",
-        "description": "LG ThinQ 웹 API(`kic-nscreen.lgthinq.com`)의 Offline Refresh Token을 입력해 주세요.\n기존 설정 파일 감지 상태: **{legacy_detected}**\n(기기 ID를 비워두면 계정에서 로보킹을 자동으로 탐색합니다.)",
+        "title": "Connect LG Roboking AI All-in-One (ThinQ Web)",
+        "description": "Enter the Offline Refresh Token for LG ThinQ Web API (`kic-nscreen.lgthinq.com`).\nExisting config file status: **{legacy_detected}**\n(Leave Device ID empty to auto-discover registered vacuum).",
         "data": {
           "refresh_token": "Refresh Token (JWT)",
-          "device_id": "기기 ID (Device ID, 비워두면 자동 탐색)",
-          "scan_interval": "클라우드 동기화 주기 (분)"
+          "device_id": "Device ID (Leave empty for auto-discovery)",
+          "scan_interval": "Cloud Status Sync Interval (minutes)",
+          "map_refresh_interval": "Live Map Refresh Interval (seconds, during cleaning)"
         }
       }
     },
     "error": {
-      "invalid_auth": "Refresh Token 인증에 실패했습니다. 토큰이 만료되었거나 올바르지 않습니다.",
-      "cannot_connect": "LG ThinQ 서버와 통신할 수 없습니다.",
-      "no_device_found": "계정에서 로보킹 기기를 찾지 못했습니다. 기기 ID를 직접 입력해 주세요.",
-      "unknown": "알 수 없는 오류가 발생했습니다."
+      "invalid_auth": "Authentication failed. Refresh Token is invalid or expired.",
+      "cannot_connect": "Cannot connect to LG ThinQ cloud servers.",
+      "no_device_found": "No Roboking vacuum found in your account. Please enter Device ID manually.",
+      "unknown": "An unknown error occurred."
     },
     "abort": {
-      "already_configured": "이미 등록된 로보킹 기기입니다."
+      "already_configured": "This LG Roboking device is already configured."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "LG 로보킹 옵션 및 토큰 관리",
-        "description": "새 Refresh Token으로 교체하거나 클라우드 상태 동기화 주기를 변경할 수 있습니다.",
+        "title": "LG Roboking Options and Settings",
+        "description": "Update Refresh Token, background sync interval, or live map refresh interval.",
         "data": {
           "refresh_token": "Refresh Token (JWT)",
-          "scan_interval": "클라우드 동기화 주기 (분)",
-          "sync_legacy_json": "기존 /config/www/lg_roboking_config.json 파일에도 회전된 토큰 동기화"
+          "scan_interval": "Cloud Status Sync Interval (minutes)",
+          "map_refresh_interval": "Live Map Refresh Interval (seconds, during cleaning)",
+          "sync_legacy_json": "Sync rotated token to /config/www/lg_roboking_config.json"
         }
       }
     },
     "error": {
-      "invalid_auth": "입력한 Refresh Token 인증에 실패했습니다."
+      "invalid_auth": "Authentication failed with the provided Refresh Token."
     }
   }
 }

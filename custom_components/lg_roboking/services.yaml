@@ -1,10 +1,10 @@
 set_clean_mode:
   name: 로보킹 청소 방식 설정
-  description: LG ThinQ 클라우드를 통해 로보킹 청소 방식을 직접 변경합니다 (도킹 상태에서 사용).
+  description: LG ThinQ 클라우드를 통해 로보킹 청소 방식을 직접 변경합니다 (도킹 상태에서 사용 권장).
   fields:
     mode:
       name: 청소 방식
-      description: "ALL (먼지 흡입 + 물걸레), SUCTION (먼지 흡입), MOP (물걸레) 또는 한글 명칭"
+      description: "ALL (먼지 흡입 + 물걸레), SUCTION (먼지 흡입), MOP (물걸레)"
       required: true
       example: "ALL"
       selector:
@@ -17,7 +17,78 @@ set_clean_mode:
             - label: "물걸레 (MOP)"
               value: "MOP"
 
+set_suction_level:
+  name: 로보킹 흡입 세기 설정
+  description: 청소기의 흡입 세기 모드를 변경합니다.
+  fields:
+    level:
+      name: 흡입 세기
+      description: "QUIET (조용히), STANDARD (표준), STRONG (강하게), MAX (최대/터보)"
+      required: true
+      example: "STANDARD"
+      selector:
+        select:
+          options:
+            - label: "조용히 (QUIET)"
+              value: "QUIET"
+            - label: "표준 (STANDARD)"
+              value: "STANDARD"
+            - label: "강하게 (STRONG)"
+              value: "STRONG"
+            - label: "최대/터보 (MAX)"
+              value: "MAX"
+
+set_zz_dist:
+  name: 로보킹 청소 간격 설정
+  description: 청소 주행 간격 및 꼼꼼 청소 모드를 변경합니다.
+  fields:
+    level:
+      name: 청소 간격
+      description: "NORMAL (보통), DEEP (꼼꼼), DEEPSLOW (꼼꼼하고 천천히)"
+      required: true
+      example: "NORMAL"
+      selector:
+        select:
+          options:
+            - label: "보통 (NORMAL)"
+              value: "NORMAL"
+            - label: "꼼꼼 (DEEP)"
+              value: "DEEP"
+            - label: "꼼꼼하고 천천히 (DEEPSLOW)"
+              value: "DEEPSLOW"
+
+set_water_level:
+  name: 로보킹 물걸레 물 공급량 설정
+  description: 물걸레 청소 시 물 공급 단계를 설정합니다.
+  fields:
+    level:
+      name: 물 공급량
+      description: "DRY (마른 걸레), LOW (적게 1단계), LOW1 (보통 2단계), HIGH (많이 3단계)"
+      required: true
+      example: "LOW1"
+      selector:
+        select:
+          options:
+            - label: "마른 걸레 (DRY)"
+              value: "DRY"
+            - label: "적게 - 1단계 (LOW)"
+              value: "LOW"
+            - label: "보통 - 2단계 (LOW1)"
+              value: "LOW1"
+            - label: "많이 - 3단계 (HIGH)"
+              value: "HIGH"
+
+set_smart_turbo:
+  name: 로보킹 스마트 터보 설정
+  description: 카펫 감지 시 자동 터보 작동 여부를 설정합니다.
+  fields:
+    enabled:
+      name: 활성화 여부
+      description: 스마트 터보 사용 여부 (True 또는 False)
+      required: true
+      selector:
+        boolean:
+
 wake_up:
   name: 로보킹 절전모드 해제
   description: 절전 상태에 들어간 로보킹을 원격으로 깨워 온라인 상태로 복귀시킵니다.
-

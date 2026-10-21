@@ -7,7 +7,8 @@
         "data": {
           "refresh_token": "Refresh Token (JWT)",
           "device_id": "기기 ID (Device ID, 비워두면 자동 탐색)",
-          "scan_interval": "클라우드 동기화 주기 (분)"
+          "scan_interval": "클라우드 상태 동기화 주기 (분)",
+          "map_refresh_interval": "실시간 맵 갱신 주기 (초, 청소 중)"
         }
       }
     },
@@ -24,11 +25,12 @@
   "options": {
     "step": {
       "init": {
-        "title": "LG 로보킹 옵션 및 토큰 관리",
-        "description": "새 Refresh Token으로 교체하거나 클라우드 상태 동기화 주기를 변경할 수 있습니다.",
+        "title": "LG 로보킹 옵션 및 설정 관리",
+        "description": "새 Refresh Token으로 교체하거나 동기화 주기 및 실시간 맵 갱신 주기를 변경할 수 있습니다.",
         "data": {
           "refresh_token": "Refresh Token (JWT)",
-          "scan_interval": "클라우드 동기화 주기 (분)",
+          "scan_interval": "클라우드 상태 동기화 주기 (분)",
+          "map_refresh_interval": "실시간 맵 갱신 주기 (초, 청소 중)",
           "sync_legacy_json": "기존 /config/www/lg_roboking_config.json 파일에도 회전된 토큰 동기화"
         }
       }

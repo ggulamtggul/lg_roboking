@@ -147,7 +147,6 @@ class LGRobokingAPI:
                         f"LG ThinQ 토큰 갱신 거부 (코드 {data.get('resultCode')}): {data}"
                     )
 
-                # Check for rotated refresh_token in Set-Cookie response
                 new_rf: str | None = None
                 if "refresh_token" in resp.cookies:
                     new_rf = resp.cookies["refresh_token"].value
@@ -173,7 +172,6 @@ class LGRobokingAPI:
 
                 self._access_token = access_token
                 self._user_no = str(user_no)
-                # Refresh at least every 25 minutes so token rotation stays active
                 jwt_exp = float(exp) if exp else (now + 3600)
                 self._token_expires_at = min(jwt_exp, now + 1500)
                 return self._access_token, self._user_no
@@ -237,7 +235,6 @@ class LGRobokingAPI:
                         "snapshot": item.get("snapshot", {}),
                     })
             if not roboking_list and items:
-                # Fallback: return all devices if filter didn't match
                 for item in items:
                     if item.get("deviceId"):
                         roboking_list.append({
@@ -279,30 +276,24 @@ class LGRobokingAPI:
             snapshot = result.get("snapshot", {})
             return {
                 "clean_type": snapshot.get("CLEAN_TYPE", "SUCTION"),
+                "suction_level": snapshot.get("SUCTION_LEVEL", "STANDARD"),
+                "zz_dist": snapshot.get("ZZ_DIST", "NORMAL"),
+                "water_supply_level": snapshot.get("WATERSUPPLY_LEVEL", "LOW1"),
+                "smart_turbo": str(snapshot.get("SMART_TURBO", "false")).lower() == "true",
+                "robot_state": snapshot.get("ROBOT_STATE", ""),
                 "snapshot": snapshot,
                 "model_name": result.get("modelName", "B-95AW.CKOR"),
                 "alias": result.get("alias", "LG 로보킹 AI 올인원"),
             }
 
-    async def async_set_clean_type(self, clean_type: str) -> dict[str, Any]:
-        """Set CLEAN_TYPE ('ALL', 'SUCTION', or 'MOP') via control-sync API."""
-        mode = clean_type.upper().strip()
-        if mode not in ("ALL", "SUCTION", "MOP"):
-            raise LGRobokingApiError(f"지원하지 않는 청소 모드입니다: {mode}")
-
+    async def async_post_control(self, payload: dict[str, Any], sync: bool = True) -> dict[str, Any]:
+        """Send a control command to the LG ThinQ device API."""
         token, user_no = await self.async_get_access_token()
         session = await self._get_session()
-        url = f"{DEVICE_BASE_URL}/{self.device_id}/control-sync"
+        endpoint = "control-sync" if sync else "control"
+        url = f"{DEVICE_BASE_URL}/{self.device_id}/{endpoint}"
         headers = self._build_service_headers(token, user_no)
         headers["content-type"] = "application/json;charset=UTF-8"
-
-        payload = {
-            "ctrlKey": "Control",
-            "command": "Set",
-            "dataKey": None,
-            "dataSetList": {"CLEAN_TYPE": mode},
-            "dataGetList": None,
-        }
 
         async with session.post(
             url,
@@ -319,23 +310,100 @@ class LGRobokingAPI:
             result_code = data.get("resultCode")
             if result_code == "0111":
                 raise LGRobokingApiError(
-                    "청소기가 주행 중일 때는 청소 방식을 변경할 수 없습니다 (LG 서버 코드 0111). "
-                    "충전대에 도킹된 상태에서 모드를 변경해 주세요."
+                    "청소기가 주행 중일 때는 설정을 변경할 수 없습니다 (LG 서버 코드 0111). "
+                    "충전대에 도킹된 상태에서 변경해 주세요."
                 )
             if resp.status != 200 or (result_code and result_code != "0000"):
                 raise LGRobokingApiError(
-                    f"청소 모드 변경 실패 (HTTP {resp.status}, 코드 {result_code}): {data}"
+                    f"명령 전송 실패 (HTTP {resp.status}, 코드 {result_code}): {data}"
                 )
             return data
 
+    async def async_set_clean_type(self, clean_type: str) -> dict[str, Any]:
+        """Set CLEAN_TYPE ('ALL', 'SUCTION', or 'MOP')."""
+        mode = clean_type.upper().strip()
+        if mode not in ("ALL", "SUCTION", "MOP"):
+            raise LGRobokingApiError(f"지원하지 않는 청소 모드입니다: {mode}")
+
+        payload = {
+            "ctrlKey": "Control",
+            "command": "Set",
+            "dataKey": None,
+            "dataSetList": {"CLEAN_TYPE": mode},
+            "dataGetList": None,
+        }
+        return await self.async_post_control(payload, sync=True)
+
+    async def async_set_suction_level(self, suction_level: str) -> dict[str, Any]:
+        """Set SUCTION_LEVEL ('QUIET', 'STANDARD', 'STRONG', 'MAX')."""
+        level = suction_level.upper().strip()
+        if level not in ("QUIET", "STANDARD", "STRONG", "MAX"):
+            raise LGRobokingApiError(f"지원하지 않는 흡입 세기입니다: {level}")
+
+        payload = {
+            "ctrlKey": "Control",
+            "command": "Set",
+            "dataKey": None,
+            "dataSetList": {"SUCTION_LEVEL": level},
+            "dataGetList": None,
+        }
+        return await self.async_post_control(payload, sync=True)
+
+    async def async_set_smart_turbo(self, enable: bool) -> dict[str, Any]:
+        """Enable or disable SMART_TURBO mode."""
+        val = "true" if enable else "false"
+        payload = {
+            "ctrlKey": "Control",
+            "command": "Set",
+            "dataKey": None,
+            "dataSetList": {"SMART_TURBO": val},
+            "dataGetList": None,
+        }
+        return await self.async_post_control(payload, sync=True)
+
+    async def async_set_zz_dist(self, zz_dist: str) -> dict[str, Any]:
+        """Set ZZ_DIST clean spacing ('NORMAL', 'DEEP', 'DEEPSLOW')."""
+        dist = zz_dist.upper().strip()
+        if dist not in ("NORMAL", "DEEP", "DEEPSLOW", "QUICK"):
+            raise LGRobokingApiError(f"지원하지 않는 청소 간격입니다: {dist}")
+
+        payload = {
+            "ctrlKey": "Control",
+            "command": "Set",
+            "dataKey": None,
+            "dataSetList": {"ZZ_DIST": dist},
+            "dataGetList": None,
+        }
+        return await self.async_post_control(payload, sync=True)
+
+    async def async_set_water_supply_level(self, water_level: str) -> dict[str, Any]:
+        """Set WATER_SUPPLY_LEVEL ('DRY', 'LOW', 'LOW1', 'HIGH')."""
+        lvl = water_level.upper().strip()
+        if lvl not in ("DRY", "LOW", "LOW1", "HIGH"):
+            raise LGRobokingApiError(f"지원하지 않는 물 공급량입니다: {lvl}")
+
+        payload = {
+            "ctrlKey": "Control",
+            "command": "Set",
+            "dataKey": None,
+            "dataSetList": {"WATER_SUPPLY_LEVEL": f"WATER_SUPPLY_{lvl}"},
+            "dataGetList": None,
+        }
+        return await self.async_post_control(payload, sync=True)
+
+    async def async_send_map_heartbeat(self) -> dict[str, Any]:
+        """Send RTMAP HEARTBEAT to keep the live map streaming session alive."""
+        payload = {
+            "ctrlKey": "Control",
+            "command": "RTMAP",
+            "dataKey": None,
+            "dataSetList": {"CMD": "HEARTBEAT"},
+            "dataGetList": None,
+        }
+        return await self.async_post_control(payload, sync=False)
+
     async def async_wake_up(self) -> dict[str, Any]:
         """Send WakeUp command to wake robot vacuum from sleep mode."""
-        token, user_no = await self.async_get_access_token()
-        session = await self._get_session()
-        url = f"{DEVICE_BASE_URL}/{self.device_id}/control-sync"
-        headers = self._build_service_headers(token, user_no)
-        headers["content-type"] = "application/json;charset=UTF-8"
-
         payload = {
             "ctrlKey": "ConfigRK",
             "command": "Set",
@@ -343,23 +411,4 @@ class LGRobokingAPI:
             "dataValue": "WakeUp",
             "dataGetList": None,
         }
-
-        async with session.post(
-            url,
-            headers=headers,
-            json=payload,
-            timeout=aiohttp.ClientTimeout(total=15),
-        ) as resp:
-            text = await resp.text()
-            try:
-                data = json.loads(text)
-            except Exception:
-                data = {"raw": text}
-
-            result_code = data.get("resultCode")
-            if resp.status != 200 or (result_code and result_code != "0000"):
-                raise LGRobokingApiError(
-                    f"절전모드 해제 실패 (HTTP {resp.status}, 코드 {result_code}): {data}"
-                )
-            return data
-
+        return await self.async_post_control(payload, sync=True)

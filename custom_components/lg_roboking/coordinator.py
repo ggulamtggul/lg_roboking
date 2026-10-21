@@ -1,6 +1,7 @@
 """DataUpdateCoordinator for LG Roboking AI All-in-One."""
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 import json
 import logging
@@ -9,6 +10,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import LGRobokingAPI, LGRobokingApiError, LGRobokingAuthError
@@ -17,22 +19,25 @@ from .const import (
     CONF_APP_VERSION,
     CONF_CLIENT_ID,
     CONF_DEVICE_ID,
+    CONF_MAP_REFRESH_INTERVAL,
     CONF_REFRESH_TOKEN,
     CONF_SCAN_INTERVAL,
     CONF_SYNC_LEGACY_JSON,
     DEFAULT_API_KEY,
     DEFAULT_APP_VERSION,
     DEFAULT_CLIENT_ID,
+    DEFAULT_MAP_REFRESH_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     LEGACY_CONFIG_PATHS,
 )
+from .map_renderer import render_roboking_map
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Coordinator to manage polling and token rotation for LG Roboking."""
+    """Coordinator to manage polling, map streaming, and token rotation for LG Roboking."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
@@ -40,6 +45,13 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         scan_minutes = entry.options.get(
             CONF_SCAN_INTERVAL,
             entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+        )
+
+        self.map_refresh_seconds = int(
+            entry.options.get(
+                CONF_MAP_REFRESH_INTERVAL,
+                entry.data.get(CONF_MAP_REFRESH_INTERVAL, DEFAULT_MAP_REFRESH_INTERVAL),
+            )
         )
 
         self.api = LGRobokingAPI(
@@ -52,6 +64,11 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             token_update_callback=self._handle_token_rotation,
         )
 
+        self.last_rendered_map_png: bytes | None = None
+        self._map_loop_task: asyncio.Task | None = None
+        self._unsub_map_interval: Any = None
+        self._is_closed = False
+
         super().__init__(
             hass,
             _LOGGER,
@@ -61,7 +78,7 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     @callback
     def _handle_token_rotation(self, new_refresh_token: str) -> None:
-        """Persist rotated refresh token into ConfigEntry (and legacy JSON if enabled)."""
+        """Persist rotated refresh token into ConfigEntry and legacy JSON."""
         if self.entry.data.get(CONF_REFRESH_TOKEN) == new_refresh_token:
             return
 
@@ -92,12 +109,91 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch latest status from LG ThinQ cloud."""
         try:
-            # Force token refresh on periodic poll so refresh_token stays actively rotated
-            return await self.api.async_get_device_status(force_token_refresh=True)
+            status = await self.api.async_get_device_status(force_token_refresh=True)
+            snapshot = status.get("snapshot", {})
+            
+            # Asynchronously render map PNG in executor
+            if "RT_MAP" in snapshot:
+                try:
+                    self.last_rendered_map_png = await self.hass.async_add_executor_job(
+                        render_roboking_map, snapshot
+                    )
+                except Exception as err:
+                    _LOGGER.warning("Error rendering Roboking map image: %s", err)
+
+            self._check_map_heartbeat_loop(status)
+            return status
         except (LGRobokingAuthError, LGRobokingApiError) as err:
             raise UpdateFailed(str(err)) from err
         except Exception as err:
             raise UpdateFailed(f"Unexpected error communicating with LG ThinQ: {err}") from err
+
+    def is_robot_active(self, status: dict[str, Any] | None = None) -> bool:
+        """Return True if robot is actively cleaning or moving."""
+        data = status or self.data or {}
+        snapshot = data.get("snapshot", {})
+        robot_state = str(snapshot.get("ROBOT_STATE", "")).upper()
+        # Non-active states: STANDBY, CHARGING, SLEEP, POWER_OFF
+        inactive_states = ("STANDBY", "CHARGING", "SLEEP", "POWER_OFF", "")
+        return robot_state not in inactive_states
+
+    def _check_map_heartbeat_loop(self, status: dict[str, Any]) -> None:
+        """Start or stop the real-time map heartbeat loop based on robot state."""
+        if self._is_closed:
+            return
+
+        if self.is_robot_active(status):
+            if self._map_loop_task is None or self._map_loop_task.done():
+                _LOGGER.info("Starting LG Roboking real-time map heartbeat loop (interval: %ds)", self.map_refresh_seconds)
+                self._map_loop_task = self.hass.async_create_background_task(
+                    self._run_map_heartbeat_loop(),
+                    name=f"lg_roboking_map_loop_{self.entry.entry_id}"
+                )
+        else:
+            if self._map_loop_task and not self._map_loop_task.done():
+                _LOGGER.info("Stopping LG Roboking real-time map heartbeat loop (robot is inactive)")
+                self._map_loop_task.cancel()
+                self._map_loop_task = None
+
+    async def _run_map_heartbeat_loop(self) -> None:
+        """Send RTMAP heartbeat and fetch updated coordinates while robot is active."""
+        try:
+            while not self._is_closed:
+                try:
+                    await self.api.async_send_map_heartbeat()
+                    status = await self.api.async_get_device_status(force_token_refresh=False)
+                    snapshot = status.get("snapshot", {})
+                    if "RT_MAP" in snapshot:
+                        self.last_rendered_map_png = await self.hass.async_add_executor_job(
+                            render_roboking_map, snapshot
+                        )
+                    self.async_set_updated_data(status)
+
+                    # If robot became inactive during run, stop loop
+                    if not self.is_robot_active(status):
+                        _LOGGER.info("Robot finished cleaning, ending map heartbeat loop.")
+                        break
+
+                except asyncio.CancelledError:
+                    break
+                except Exception as err:
+                    _LOGGER.debug("Map heartbeat loop cycle exception: %s", err)
+
+                await asyncio.sleep(self.map_refresh_seconds)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._map_loop_task = None
+
+    async def async_get_or_render_map(self) -> bytes:
+        """Return latest map PNG bytes, rendering if not already cached."""
+        if self.last_rendered_map_png:
+            return self.last_rendered_map_png
+        snapshot = (self.data or {}).get("snapshot", {})
+        self.last_rendered_map_png = await self.hass.async_add_executor_job(
+            render_roboking_map, snapshot
+        )
+        return self.last_rendered_map_png
 
     async def async_set_clean_type(self, clean_type: str) -> None:
         """Send clean mode command to LG ThinQ cloud and optimistically update state."""
@@ -108,7 +204,50 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             current["snapshot"] = {**current["snapshot"], "CLEAN_TYPE": clean_type.upper()}
         self.async_set_updated_data(current)
 
+    async def async_set_suction_level(self, suction_level: str) -> None:
+        """Send suction level command to LG ThinQ cloud and optimistically update state."""
+        await self.api.async_set_suction_level(suction_level)
+        current = dict(self.data or {})
+        current["suction_level"] = suction_level.upper()
+        if "snapshot" in current and isinstance(current["snapshot"], dict):
+            current["snapshot"] = {**current["snapshot"], "SUCTION_LEVEL": suction_level.upper()}
+        self.async_set_updated_data(current)
+
+    async def async_set_smart_turbo(self, enable: bool) -> None:
+        """Send smart turbo command to LG ThinQ cloud and optimistically update state."""
+        await self.api.async_set_smart_turbo(enable)
+        current = dict(self.data or {})
+        current["smart_turbo"] = enable
+        if "snapshot" in current and isinstance(current["snapshot"], dict):
+            current["snapshot"] = {**current["snapshot"], "SMART_TURBO": "true" if enable else "false"}
+        self.async_set_updated_data(current)
+
+    async def async_set_zz_dist(self, zz_dist: str) -> None:
+        """Send clean spacing command to LG ThinQ cloud and optimistically update state."""
+        await self.api.async_set_zz_dist(zz_dist)
+        current = dict(self.data or {})
+        current["zz_dist"] = zz_dist.upper()
+        if "snapshot" in current and isinstance(current["snapshot"], dict):
+            current["snapshot"] = {**current["snapshot"], "ZZ_DIST": zz_dist.upper()}
+        self.async_set_updated_data(current)
+
+    async def async_set_water_supply_level(self, water_level: str) -> None:
+        """Send water supply level command to LG ThinQ cloud and optimistically update state."""
+        await self.api.async_set_water_supply_level(water_level)
+        current = dict(self.data or {})
+        current["water_supply_level"] = water_level.upper()
+        if "snapshot" in current and isinstance(current["snapshot"], dict):
+            current["snapshot"] = {**current["snapshot"], "WATERSUPPLY_LEVEL": water_level.upper()}
+        self.async_set_updated_data(current)
+
     async def async_wake_up(self) -> None:
         """Send WakeUp command to LG ThinQ cloud to wake the robot vacuum."""
         await self.api.async_wake_up()
 
+    async def async_close(self) -> None:
+        """Clean up background tasks and close API session."""
+        self._is_closed = True
+        if self._map_loop_task and not self._map_loop_task.done():
+            self._map_loop_task.cancel()
+            self._map_loop_task = None
+        await self.api.async_close()

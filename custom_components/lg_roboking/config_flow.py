@@ -18,12 +18,14 @@ from .const import (
     CONF_APP_VERSION,
     CONF_CLIENT_ID,
     CONF_DEVICE_ID,
+    CONF_MAP_REFRESH_INTERVAL,
     CONF_REFRESH_TOKEN,
     CONF_SCAN_INTERVAL,
     CONF_SYNC_LEGACY_JSON,
     DEFAULT_API_KEY,
     DEFAULT_APP_VERSION,
     DEFAULT_CLIENT_ID,
+    DEFAULT_MAP_REFRESH_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     LEGACY_CONFIG_PATHS,
@@ -62,6 +64,7 @@ class LGRobokingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             refresh_token = user_input[CONF_REFRESH_TOKEN].strip()
             device_id = (user_input.get(CONF_DEVICE_ID) or "").strip()
             scan_interval = int(user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
+            map_refresh = int(user_input.get(CONF_MAP_REFRESH_INTERVAL, DEFAULT_MAP_REFRESH_INTERVAL))
 
             api = LGRobokingAPI(
                 hass=self.hass,
@@ -83,7 +86,6 @@ class LGRobokingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 if not errors:
                     status = await api.async_get_device_status(force_token_refresh=True)
-                    # Use potentially rotated refresh_token
                     latest_token = api.refresh_token
                     await self.async_set_unique_id(device_id)
                     self._abort_if_unique_id_configured()
@@ -98,6 +100,7 @@ class LGRobokingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             CONF_API_KEY: legacy.get("api_key", DEFAULT_API_KEY),
                             CONF_APP_VERSION: legacy.get("app_version", DEFAULT_APP_VERSION),
                             CONF_SCAN_INTERVAL: scan_interval,
+                            CONF_MAP_REFRESH_INTERVAL: map_refresh,
                             CONF_SYNC_LEGACY_JSON: True,
                         },
                     )
@@ -146,6 +149,17 @@ class LGRobokingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         mode=selector.NumberSelectorMode.BOX,
                     )
                 ),
+                vol.Optional(
+                    CONF_MAP_REFRESH_INTERVAL, default=DEFAULT_MAP_REFRESH_INTERVAL
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(
+                        min=5,
+                        max=60,
+                        step=1,
+                        unit_of_measurement="초",
+                        mode=selector.NumberSelectorMode.BOX,
+                    )
+                ),
             }
         )
 
@@ -168,7 +182,7 @@ class LGRobokingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class LGRobokingOptionsFlowHandler(config_entries.OptionsFlow):
-    """Handle options flow (updating Refresh Token or polling interval)."""
+    """Handle options flow (updating Refresh Token, intervals, etc.)."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
@@ -183,10 +197,10 @@ class LGRobokingOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             new_token = user_input[CONF_REFRESH_TOKEN].strip()
             scan_interval = int(user_input[CONF_SCAN_INTERVAL])
+            map_refresh = int(user_input[CONF_MAP_REFRESH_INTERVAL])
             sync_legacy = bool(user_input.get(CONF_SYNC_LEGACY_JSON, True))
 
             if new_token != self._config_entry.data.get(CONF_REFRESH_TOKEN):
-                # Validate new token before saving
                 api = LGRobokingAPI(
                     hass=self.hass,
                     refresh_token=new_token,
@@ -207,6 +221,7 @@ class LGRobokingOptionsFlowHandler(config_entries.OptionsFlow):
                         **self._config_entry.data,
                         CONF_REFRESH_TOKEN: new_token,
                         CONF_SCAN_INTERVAL: scan_interval,
+                        CONF_MAP_REFRESH_INTERVAL: map_refresh,
                         CONF_SYNC_LEGACY_JSON: sync_legacy,
                     },
                 )
@@ -214,6 +229,7 @@ class LGRobokingOptionsFlowHandler(config_entries.OptionsFlow):
                     title="",
                     data={
                         CONF_SCAN_INTERVAL: scan_interval,
+                        CONF_MAP_REFRESH_INTERVAL: map_refresh,
                         CONF_SYNC_LEGACY_JSON: sync_legacy,
                     },
                 )
@@ -222,6 +238,10 @@ class LGRobokingOptionsFlowHandler(config_entries.OptionsFlow):
         current_interval = self._config_entry.options.get(
             CONF_SCAN_INTERVAL,
             self._config_entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+        )
+        current_map_refresh = self._config_entry.options.get(
+            CONF_MAP_REFRESH_INTERVAL,
+            self._config_entry.data.get(CONF_MAP_REFRESH_INTERVAL, DEFAULT_MAP_REFRESH_INTERVAL),
         )
         current_sync = self._config_entry.options.get(
             CONF_SYNC_LEGACY_JSON,
@@ -244,6 +264,15 @@ class LGRobokingOptionsFlowHandler(config_entries.OptionsFlow):
                             max=60,
                             step=1,
                             unit_of_measurement="분",
+                            mode=selector.NumberSelectorMode.BOX,
+                        )
+                    ),
+                    vol.Required(CONF_MAP_REFRESH_INTERVAL, default=current_map_refresh): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=5,
+                            max=60,
+                            step=1,
+                            unit_of_measurement="초",
                             mode=selector.NumberSelectorMode.BOX,
                         )
                     ),
