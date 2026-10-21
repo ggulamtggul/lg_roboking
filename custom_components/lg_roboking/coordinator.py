@@ -131,9 +131,14 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def is_robot_active(self, status: dict[str, Any] | None = None) -> bool:
         """Return True if robot is actively cleaning or moving."""
         data = status or self.data or {}
-        snapshot = data.get("snapshot", {})
-        robot_state = str(snapshot.get("ROBOT_STATE", "")).upper().strip()
+        snapshot = data.get("snapshot") if isinstance(data.get("snapshot"), dict) else data
+        robot_state = str(snapshot.get("ROBOT_STATE") or data.get("robot_state") or "").upper().strip()
         inactive_states = ("STANDBY", "CHARGING", "SLEEP", "POWER_OFF", "")
+        if not robot_state:
+            station_state = str(snapshot.get("STATION_STATE", "")).upper().strip()
+            if station_state in ("START", "WORKING"):
+                return True
+            return False
         return robot_state not in inactive_states
 
     def _check_map_heartbeat_loop(self, status: dict[str, Any]) -> None:
@@ -196,9 +201,16 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def async_refresh_live_map(self) -> bytes:
         """On-demand live map refresh triggered by Camera requests."""
         try:
-            # Ensure session active
+            # Ensure streaming session active on cloud if robot is active
             if self.is_robot_active():
-                await self.api.async_send_map_heartbeat()
+                try:
+                    await self.api.async_start_map_stream(0, 0)
+                except Exception:
+                    pass
+                try:
+                    await self.api.async_send_map_heartbeat()
+                except Exception:
+                    pass
             status = await self.api.async_get_device_status(force_token_refresh=False)
             snapshot = status.get("snapshot", {})
             if "RT_MAP" in snapshot:

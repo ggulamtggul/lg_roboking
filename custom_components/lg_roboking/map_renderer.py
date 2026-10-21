@@ -275,56 +275,93 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
         py = (height - (((pos_y_mm / 1000.0) - y_min) / resolution)) * SCALE
         return px, py
 
-    # 1. Cleaning Trajectory Lines (Only CLEAN_PATH 1.0, skip navigation/teleport lines)
+    # 1. Cleaning Trajectory Lines (Official LG Thinq Algorithm: GKM-20.bundle.js)
     rtw_keys: list[tuple[int, str]] = []
     for k in snapshot.keys():
         if k == "RTW" and isinstance(snapshot[k], list):
             rtw_keys.append((0, k))
         elif k.startswith("RTW"):
-            m = re.match(r"RTW(\d+)", k)
+            m = re.match(r"^RTW(\d+)$", k)
             if m:
                 rtw_keys.append((int(m.group(1)), k))
     rtw_keys.sort(key=lambda item: item[0])
 
-    MAX_JUMP_PX = 18.0
-
+    all_path_points: list[Any] = []
     for _, key in rtw_keys:
         chunk = snapshot[key]
-        if not isinstance(chunk, list):
+        if isinstance(chunk, list):
+            all_path_points.extend(chunk)
+
+    segments: list[list[tuple[float, float]]] = []
+    current_segment: list[tuple[float, float]] = []
+    prev_screen_pos: tuple[float, float] | None = None
+    prev_raw_pt: tuple[float, float, float] | None = None
+
+    for pt in all_path_points:
+        if not isinstance(pt, (list, tuple)) or len(pt) < 2:
             continue
 
-        current_segment: list[tuple[float, float]] = []
-        prev_p: tuple[float, float] | None = None
+        m = float(pt[0])
+        f = float(pt[1])
+        p = float(pt[2]) if len(pt) > 2 else 1.0
 
-        for pt in chunk:
-            if not isinstance(pt, (list, tuple)) or len(pt) < 2:
-                continue
+        E = float(prev_raw_pt[0]) if prev_raw_pt else None
+        h = float(prev_raw_pt[1]) if prev_raw_pt else None
+        T = float(prev_raw_pt[2]) if prev_raw_pt and len(prev_raw_pt) > 2 else 1.0
 
-            pt_type = pt[2] if len(pt) > 2 else 1.0
-            p = mm_to_canvas(pt[0], pt[1])
+        is_clean = (p == 1.0)
+        was_clean = (T == 1.0)
+        is_nav = (p in (2.0, 3.0, 4.0))
+        was_nav = (T in (2.0, 3.0, 4.0))
 
-            # ONLY draw CLEAN_PATH (1.0). Skip navigation transitions (2.0) and escapes (4.0)
-            if pt_type != 1.0:
+        # A is True when transitioning between clean path and navigation/homing/escape
+        A = (is_clean and was_nav) or (is_nav and was_clean)
+
+        # In cleanPath mode, skip navigation/homing/escape points
+        if not is_clean:
+            if len(current_segment) >= 2:
+                segments.append(current_segment)
+            current_segment = []
+            prev_raw_pt = (m, f, p)
+            continue
+
+        cx, cy = mm_to_canvas(m, f)
+        # Center of cell (0.5 * cell size) matching LG official webapp
+        cx += SCALE / 2.0
+        cy += SCALE / 2.0
+
+        if prev_screen_pos is None:
+            current_segment = [(cx, cy)]
+        else:
+            if A:
+                # Mode transition: lift pen, start new segment
                 if len(current_segment) >= 2:
-                    draw.line(current_segment, fill=(255, 255, 255, 190), width=1)
-                current_segment = []
-                prev_p = None
+                    segments.append(current_segment)
+                current_segment = [(cx, cy)]
+                prev_screen_pos = (cx, cy)
+                prev_raw_pt = (m, f, p)
                 continue
 
-            if prev_p is not None:
-                dist = math.hypot(p[0] - prev_p[0], p[1] - prev_p[1])
-                if dist > MAX_JUMP_PX:
-                    if len(current_segment) >= 2:
-                        draw.line(current_segment, fill=(255, 255, 255, 190), width=1)
-                    current_segment = [p]
+            dist = math.hypot(cx - prev_screen_pos[0], cy - prev_screen_pos[1])
+            if dist > 60.0:
+                # LG official threshold: if dist > 60px, only connect if moving along same X or Y axis
+                if E is not None and h is not None and (m == E or f == h):
+                    current_segment.append((cx, cy))
                 else:
-                    current_segment.append(p)
+                    if len(current_segment) >= 2:
+                        segments.append(current_segment)
+                    current_segment = [(cx, cy)]
             else:
-                current_segment.append(p)
-            prev_p = p
+                current_segment.append((cx, cy))
 
-        if len(current_segment) >= 2:
-            draw.line(current_segment, fill=(255, 255, 255, 190), width=1)
+        prev_screen_pos = (cx, cy)
+        prev_raw_pt = (m, f, p)
+
+    if len(current_segment) >= 2:
+        segments.append(current_segment)
+
+    for seg in segments:
+        draw.line(seg, fill=(255, 255, 255, 200), width=1)
 
     # 2. Virtual Walls & Restricted Areas (VW)
     # Fully transparent fill with crisp orange-red border line (2px)

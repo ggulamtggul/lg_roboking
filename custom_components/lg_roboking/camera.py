@@ -4,9 +4,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.camera import Camera, CameraEntityFeature
+from homeassistant.components.camera import Camera
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -56,19 +56,32 @@ class LGRobokingMapCamera(CoordinatorEntity[LGRobokingCoordinator], Camera):
         )
 
     @property
+    def state(self) -> str:
+        """Return dynamic camera state (streaming when cleaning, idle otherwise)."""
+        if self.coordinator.is_robot_active():
+            return "streaming"
+        return "idle"
+
+    @property
     def is_streaming(self) -> bool:
         """Return True if robot is actively cleaning and map is streaming."""
         return self.coordinator.is_robot_active()
 
     @property
     def is_recording(self) -> bool:
-        """Return True if robot is active."""
-        return self.coordinator.is_robot_active()
+        """Return False: Roboking map camera does not record video."""
+        return False
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from coordinator, rotating access token for instant frontend image refresh."""
+        self.async_update_token()
+        super()._handle_coordinator_update()
 
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
     ) -> bytes | None:
-        """Return bytes of the latest rendered map PNG image."""
+        """Return bytes of latest map image, triggering on-demand refresh if needed."""
         try:
             return await self.coordinator.async_get_or_render_map()
         except Exception as err:
@@ -91,6 +104,7 @@ class LGRobokingMapCamera(CoordinatorEntity[LGRobokingCoordinator], Camera):
             "dock_position": rt_map.get("HOME_POS"),
             "restricted_zones_count": vw.get("NUM", 0),
             "is_cleaning": self.coordinator.is_robot_active(),
+            "robot_state": snapshot.get("ROBOT_STATE"),
             "last_map_update": self.coordinator.last_map_update_timestamp,
             "device_id": self._device_id,
         }
