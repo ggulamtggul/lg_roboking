@@ -360,16 +360,22 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
     if len(current_segment) >= 2:
         segments.append(current_segment)
 
+    # Pass 1: Translucent sweep corridor (4.5 * cellSize, #85B8FF) matching official LG GKM-20 webapp
+    sweep_width = int(4.5 * SCALE)
     for seg in segments:
-        draw.line(seg, fill=(255, 255, 255, 200), width=1)
+        draw.line(seg, fill=(133, 184, 255, 50), width=sweep_width)
+
+    # Pass 2: Crisp white center trajectory (0.5 * cellSize, #FFFFFF)
+    for seg in segments:
+        draw.line(seg, fill=(255, 255, 255, 215), width=1)
 
     # 2. Virtual Walls & Restricted Areas (VW)
-    # Fully transparent fill with crisp orange-red border line (2px)
+    # Semi-transparent tint (15% opacity, #FF3B3026) with crisp orange-red border line (2px) matching LG official app
     vw = snapshot.get("VW") or {}
     for poly in vw.get("VERTX") or []:
         if len(poly) >= 3:
             pts = [mm_to_canvas(pt[0], pt[1]) for pt in poly]
-            draw.polygon(pts, fill=None, outline=(235, 75, 30, 255), width=2)
+            draw.polygon(pts, fill=(255, 59, 48, 38), outline=(235, 75, 30, 255), width=2)
             for p in pts:
                 if p[0] / SCALE < min_gx:
                     min_gx = max(0, int(p[0] / SCALE))
