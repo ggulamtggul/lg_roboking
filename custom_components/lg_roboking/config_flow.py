@@ -153,7 +153,7 @@ class LGRobokingConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_MAP_REFRESH_INTERVAL, default=DEFAULT_MAP_REFRESH_INTERVAL
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
-                        min=5,
+                        min=3,
                         max=60,
                         step=1,
                         unit_of_measurement="초",
@@ -269,7 +269,7 @@ class LGRobokingOptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                     vol.Required(CONF_MAP_REFRESH_INTERVAL, default=current_map_refresh): selector.NumberSelector(
                         selector.NumberSelectorConfig(
-                            min=5,
+                            min=3,
                             max=60,
                             step=1,
                             unit_of_measurement="초",
