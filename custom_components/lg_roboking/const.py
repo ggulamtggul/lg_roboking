@@ -52,22 +52,24 @@ SUCTION_LEVEL_TO_LABEL: dict[str, str] = {
 LABEL_TO_SUCTION_LEVEL: dict[str, str] = {v: k for k, v in SUCTION_LEVEL_TO_LABEL.items()}
 SUCTION_LEVEL_OPTIONS: list[str] = list(SUCTION_LEVEL_TO_LABEL.values())
 
-# Cleaning Distance / Zigzag Distance (NORMAL, DEEP, DEEPSLOW)
-# Official LG ThinQ B95 App Labels: 기본, 꼼꼼, 꼼꼼+
+# Cleaning Distance / Zigzag Distance (QUICK, NORMAL, DEEP, DEEPSLOW)
+# Official LG ThinQ B95 App Labels: 넓게, 기본, 좁게, 꼼꼼+
 ZZ_DIST_TO_LABEL: dict[str, str] = {
+    "QUICK": "넓게",
     "NORMAL": "기본",
-    "DEEP": "꼼꼼",
+    "DEEP": "좁게",
     "DEEPSLOW": "꼼꼼+",
 }
 LABEL_TO_ZZ_DIST: dict[str, str] = {
+    "넓게": "QUICK",
     "기본": "NORMAL",
     "보통": "NORMAL",
-    "꼼꼼": "DEEP",
     "좁게": "DEEP",
+    "꼼꼼": "DEEP",
     "꼼꼼+": "DEEPSLOW",
     "꼼꼼하고 천천히": "DEEPSLOW",
 }
-ZZ_DIST_OPTIONS: list[str] = ["기본", "꼼꼼", "꼼꼼+"]
+ZZ_DIST_OPTIONS: list[str] = ["넓게", "기본", "좁게", "꼼꼼+"]
 
 # Water Supply Level (DRY, LOW, LOW1, HIGH)
 WATER_SUPPLY_TO_LABEL: dict[str, str] = {

@@ -40,21 +40,23 @@ set_suction_level:
 
 set_zz_dist:
   name: 로보킹 청소 간격 설정
-  description: 청소 주행 간격 및 꼼꼼 청소 모드를 변경합니다.
+  description: 청소 간격(넓게, 기본, 좁게, 꼼꼼+)을 설정합니다.
   fields:
     level:
       name: 청소 간격
-      description: "NORMAL (보통), DEEP (꼼꼼), DEEPSLOW (꼼꼼하고 천천히)"
+      description: "QUICK (넓게), NORMAL (기본), DEEP (좁게), DEEPSLOW (꼼꼼+)"
       required: true
       example: "NORMAL"
       selector:
         select:
           options:
-            - label: "보통 (NORMAL)"
+            - label: "넓게 (QUICK)"
+              value: "QUICK"
+            - label: "기본 (NORMAL)"
               value: "NORMAL"
-            - label: "꼼꼼 (DEEP)"
+            - label: "좁게 (DEEP)"
               value: "DEEP"
-            - label: "꼼꼼하고 천천히 (DEEPSLOW)"
+            - label: "꼼꼼+ (DEEPSLOW)"
               value: "DEEPSLOW"
 
 set_water_level:
