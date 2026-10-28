@@ -50,7 +50,6 @@ class LGRobokingVacuum(CoordinatorEntity[LGRobokingCoordinator], StateVacuumEnti
         | VacuumEntityFeature.STOP
         | VacuumEntityFeature.RETURN_HOME
         | VacuumEntityFeature.FAN_SPEED
-        | VacuumEntityFeature.BATTERY
         | VacuumEntityFeature.LOCATE
         | VacuumEntityFeature.CLEAN_SPOT
     )
