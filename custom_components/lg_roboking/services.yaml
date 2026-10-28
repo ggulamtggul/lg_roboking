@@ -188,3 +188,51 @@ set_repeat:
 wake_up:
   name: 로보킹 절전 해제 (WakeUp)
   description: 절전(SLEEP) 모드에 진입한 로보킹을 깨워 즉시 명령을 수신할 수 있게 합니다.
+
+set_light:
+  name: 로보킹 전면 라이트 설정
+  description: 로보킹 본체 전면 조명을 On/Off 합니다.
+  fields:
+    enabled:
+      name: 활성화 여부
+      description: true (켜짐) 또는 false (꺼짐)
+      required: true
+      example: true
+      selector:
+        boolean:
+
+set_ai_detection:
+  name: 로보킹 AI 장애물 감지 설정
+  description: AI 사물 및 장애물 감지 기능을 On/Off 합니다.
+  fields:
+    enabled:
+      name: 활성화 여부
+      description: true (켜짐) 또는 false (꺼짐)
+      required: true
+      example: true
+      selector:
+        boolean:
+
+set_button_lock:
+  name: 로보킹 버튼 잠금 (차일드 락) 설정
+  description: 로보킹 본체 상단 물리 버튼 잠금을 On/Off 합니다.
+  fields:
+    enabled:
+      name: 활성화 여부
+      description: true (켜짐) 또는 false (꺼짐)
+      required: true
+      example: true
+      selector:
+        boolean:
+
+set_toggle_reclean:
+  name: 로보킹 충전 후 청소 재개 설정
+  description: 배터리 충전 후 중단된 위치로 이동하여 청소를 이어가는 기능을 On/Off 합니다.
+  fields:
+    enabled:
+      name: 활성화 여부
+      description: true (켜짐) 또는 false (꺼짐)
+      required: true
+      example: true
+      selector:
+        boolean:

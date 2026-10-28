@@ -365,6 +365,42 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         current["snapshot"] = snapshot
         self.async_set_updated_data(current)
 
+    async def async_set_light(self, enable: bool) -> None:
+        """Enable or disable robot front light."""
+        await self.api.async_set_light(enable)
+        current = dict(self.data or {})
+        snapshot = dict(current.get("snapshot") or {})
+        snapshot["LIGHT"] = "true" if enable else "false"
+        current["snapshot"] = snapshot
+        self.async_set_updated_data(current)
+
+    async def async_set_ai_detection(self, enable: bool) -> None:
+        """Enable or disable AI obstacle detection."""
+        await self.api.async_set_ai_detection(enable)
+        current = dict(self.data or {})
+        snapshot = dict(current.get("snapshot") or {})
+        snapshot["AI_DETECTION"] = "true" if enable else "false"
+        current["snapshot"] = snapshot
+        self.async_set_updated_data(current)
+
+    async def async_set_button_lock(self, enable: bool) -> None:
+        """Enable or disable hardware button lock / child lock."""
+        await self.api.async_set_button_lock(enable)
+        current = dict(self.data or {})
+        snapshot = dict(current.get("snapshot") or {})
+        snapshot["BUTTON_LOCK"] = "true" if enable else "false"
+        current["snapshot"] = snapshot
+        self.async_set_updated_data(current)
+
+    async def async_set_toggle_reclean(self, enable: bool) -> None:
+        """Enable or disable resume cleaning after recharge."""
+        await self.api.async_set_toggle_reclean(enable)
+        current = dict(self.data or {})
+        snapshot = dict(current.get("snapshot") or {})
+        snapshot["TOGGLE_RECLEAN"] = "true" if enable else "false"
+        current["snapshot"] = snapshot
+        self.async_set_updated_data(current)
+
     async def async_wake_up(self) -> None:
         """Send WakeUp command to LG ThinQ cloud to wake the robot vacuum."""
         await self.api.async_wake_up()

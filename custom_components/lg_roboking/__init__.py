@@ -35,6 +35,10 @@ from .const import (
     SERVICE_SET_CLEAN_MODE,
     SERVICE_SET_DOORSILL_CLIMBING,
     SERVICE_SET_REPEAT,
+    SERVICE_SET_LIGHT,
+    SERVICE_SET_AI_DETECTION,
+    SERVICE_SET_BUTTON_LOCK,
+    SERVICE_SET_TOGGLE_RECLEAN,
     SERVICE_SET_SMART_TURBO,
     SERVICE_SET_SUCTION_LEVEL,
     SERVICE_SET_WATER_LEVEL,
@@ -285,7 +289,63 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=SERVICE_SET_BOOL_SCHEMA,
         )
 
-    # 18. Wake Up
+    # 18. Light Mode
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_LIGHT):
+        async def async_handle_light(call: ServiceCall) -> None:
+            enabled = call.data[ATTR_ENABLED]
+            for coord in _get_coordinators():
+                await coord.async_set_light(enabled)
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_LIGHT,
+            async_handle_light,
+            schema=SERVICE_SET_BOOL_SCHEMA,
+        )
+
+    # 19. AI Obstacle Detection
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_AI_DETECTION):
+        async def async_handle_ai(call: ServiceCall) -> None:
+            enabled = call.data[ATTR_ENABLED]
+            for coord in _get_coordinators():
+                await coord.async_set_ai_detection(enabled)
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_AI_DETECTION,
+            async_handle_ai,
+            schema=SERVICE_SET_BOOL_SCHEMA,
+        )
+
+    # 20. Hardware Button Lock / Child Lock
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_BUTTON_LOCK):
+        async def async_handle_button_lock(call: ServiceCall) -> None:
+            enabled = call.data[ATTR_ENABLED]
+            for coord in _get_coordinators():
+                await coord.async_set_button_lock(enabled)
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_BUTTON_LOCK,
+            async_handle_button_lock,
+            schema=SERVICE_SET_BOOL_SCHEMA,
+        )
+
+    # 21. Toggle Reclean (Resume after charge)
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_TOGGLE_RECLEAN):
+        async def async_handle_toggle_reclean(call: ServiceCall) -> None:
+            enabled = call.data[ATTR_ENABLED]
+            for coord in _get_coordinators():
+                await coord.async_set_toggle_reclean(enabled)
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_TOGGLE_RECLEAN,
+            async_handle_toggle_reclean,
+            schema=SERVICE_SET_BOOL_SCHEMA,
+        )
+
+    # 22. Wake Up
     if not hass.services.has_service(DOMAIN, SERVICE_WAKE_UP):
         async def async_handle_wake_up(_: ServiceCall) -> None:
             for coord in _get_coordinators():

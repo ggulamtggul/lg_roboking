@@ -509,4 +509,25 @@ class LGRobokingAPI:
 
     async def async_set_repeat(self, enable: bool) -> dict[str, Any]:
         """Enable or disable repeat cleaning mode (REPEAT: 'true' / 'false')."""
-        return await self.async_send_control_command("Control", "Set", data_set_list={"REPEAT": "true" if enable else "false"})
+        data_val = json.dumps({"REPEAT": "true" if enable else "false"})
+        return await self.async_send_control_command("Control", "Set", data_value=data_val)
+
+    async def async_set_light(self, enable: bool) -> dict[str, Any]:
+        """Enable or disable robot front light (LIGHT)."""
+        data_val = json.dumps({"LIGHT": "true" if enable else "false"})
+        return await self.async_send_control_command("Control", "Set", data_value=data_val)
+
+    async def async_set_ai_detection(self, enable: bool) -> dict[str, Any]:
+        """Enable or disable AI obstacle detection (AI_DETECTION)."""
+        data_val = json.dumps({"AI_DETECTION": "true" if enable else "false"})
+        return await self.async_send_control_command("Control", "Set", data_value=data_val)
+
+    async def async_set_button_lock(self, enable: bool) -> dict[str, Any]:
+        """Enable or disable robot hardware button lock / child lock (BUTTON_LOCK)."""
+        data_val = json.dumps({"BUTTON_LOCK": "true" if enable else "false"})
+        return await self.async_send_control_command("Control", "Set", data_value=data_val)
+
+    async def async_set_toggle_reclean(self, enable: bool) -> dict[str, Any]:
+        """Enable or disable resume cleaning after recharge (TOGGLE_RECLEAN)."""
+        data_val = json.dumps({"TOGGLE_RECLEAN": "true" if enable else "false"})
+        return await self.async_send_control_command("Control", "Set", data_value=data_val)

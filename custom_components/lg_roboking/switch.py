@@ -26,8 +26,10 @@ async def async_setup_entry(
     coordinator: LGRobokingCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([
         LGRobokingSmartTurboSwitch(coordinator, entry),
-        LGRobokingDoorsillSwitch(coordinator, entry),
-        LGRobokingRepeatSwitch(coordinator, entry),
+        LGRobokingLightSwitch(coordinator, entry),
+        LGRobokingAiDetectionSwitch(coordinator, entry),
+        LGRobokingButtonLockSwitch(coordinator, entry),
+        LGRobokingReCleanSwitch(coordinator, entry),
     ])
 
 
@@ -70,7 +72,7 @@ class LGRobokingSmartTurboSwitch(LGRobokingBaseSwitch):
         """Return True if smart turbo mode is currently enabled."""
         data = self.coordinator.data or {}
         snapshot = data.get("snapshot") if isinstance(data.get("snapshot"), dict) else data
-        return bool(snapshot.get("SMART_TURBO") == "true" or data.get("smart_turbo", False))
+        return bool(str(snapshot.get("SMART_TURBO", "")).lower() == "true" or data.get("smart_turbo", False))
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn on Smart Turbo mode."""
@@ -83,61 +85,133 @@ class LGRobokingSmartTurboSwitch(LGRobokingBaseSwitch):
         await self.coordinator.async_set_smart_turbo(False)
 
 
-class LGRobokingDoorsillSwitch(LGRobokingBaseSwitch):
-    """Switch for Doorsill Climbing mode."""
+class LGRobokingLightSwitch(LGRobokingBaseSwitch):
+    """Switch for Robot Front Light (LIGHT)."""
 
-    _attr_name = "로보킹 문턱 넘기"
-    _attr_icon = "mdi:stairs"
-
-    def __init__(self, coordinator: LGRobokingCoordinator, entry: ConfigEntry) -> None:
-        """Initialize switch."""
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{self._device_id}_doorsill_climbing"
-        self.entity_id = "switch.lg_roboking_doorsill_climbing"
-
-    @property
-    def is_on(self) -> bool:
-        """Return True if doorsill climbing is currently enabled."""
-        data = self.coordinator.data or {}
-        snapshot = data.get("snapshot") if isinstance(data.get("snapshot"), dict) else data
-        return bool(snapshot.get("DOORSILLCLIMBING") in ("true", True, "On", "on"))
-
-    async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn on Doorsill Climbing mode."""
-        _LOGGER.info("Enabling LG Roboking Doorsill Climbing")
-        await self.coordinator.async_set_doorsill_climbing(True)
-
-    async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn off Doorsill Climbing mode."""
-        _LOGGER.info("Disabling LG Roboking Doorsill Climbing")
-        await self.coordinator.async_set_doorsill_climbing(False)
-
-
-class LGRobokingRepeatSwitch(LGRobokingBaseSwitch):
-    """Switch for Repeat Cleaning mode."""
-
-    _attr_name = "로보킹 반복 청소"
-    _attr_icon = "mdi:repeat"
+    _attr_name = "로보킹 라이트"
+    _attr_icon = "mdi:lightbulb"
 
     def __init__(self, coordinator: LGRobokingCoordinator, entry: ConfigEntry) -> None:
         """Initialize switch."""
         super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{self._device_id}_repeat_clean"
-        self.entity_id = "switch.lg_roboking_repeat_clean"
+        self._attr_unique_id = f"{self._device_id}_light"
+        self.entity_id = "switch.lg_roboking_light"
 
     @property
     def is_on(self) -> bool:
-        """Return True if repeat clean is currently enabled."""
+        """Return True if front light is currently enabled."""
         data = self.coordinator.data or {}
         snapshot = data.get("snapshot") if isinstance(data.get("snapshot"), dict) else data
-        return bool(snapshot.get("REPEAT") in ("true", True, "On", "on"))
+        val = snapshot.get("LIGHT")
+        if isinstance(val, bool):
+            return val
+        return str(val).lower() == "true"
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn on Repeat Cleaning mode."""
-        _LOGGER.info("Enabling LG Roboking Repeat Clean")
-        await self.coordinator.async_set_repeat(True)
+        """Turn on Front Light."""
+        _LOGGER.info("Enabling LG Roboking Front Light")
+        await self.coordinator.async_set_light(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn off Repeat Cleaning mode."""
-        _LOGGER.info("Disabling LG Roboking Repeat Clean")
-        await self.coordinator.async_set_repeat(False)
+        """Turn off Front Light."""
+        _LOGGER.info("Disabling LG Roboking Front Light")
+        await self.coordinator.async_set_light(False)
+
+
+class LGRobokingAiDetectionSwitch(LGRobokingBaseSwitch):
+    """Switch for AI Obstacle Detection (AI_DETECTION)."""
+
+    _attr_name = "로보킹 AI 장애물 감지"
+    _attr_icon = "mdi:eye-check"
+
+    def __init__(self, coordinator: LGRobokingCoordinator, entry: ConfigEntry) -> None:
+        """Initialize switch."""
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self._device_id}_ai_detection"
+        self.entity_id = "switch.lg_roboking_ai_detection"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if AI obstacle detection is currently enabled."""
+        data = self.coordinator.data or {}
+        snapshot = data.get("snapshot") if isinstance(data.get("snapshot"), dict) else data
+        val = snapshot.get("AI_DETECTION")
+        if isinstance(val, bool):
+            return val
+        return str(val).lower() == "true"
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on AI Detection."""
+        _LOGGER.info("Enabling LG Roboking AI Detection")
+        await self.coordinator.async_set_ai_detection(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off AI Detection."""
+        _LOGGER.info("Disabling LG Roboking AI Detection")
+        await self.coordinator.async_set_ai_detection(False)
+
+
+class LGRobokingButtonLockSwitch(LGRobokingBaseSwitch):
+    """Switch for Hardware Button Lock / Child Lock (BUTTON_LOCK)."""
+
+    _attr_name = "로보킹 버튼 잠금"
+    _attr_icon = "mdi:lock"
+
+    def __init__(self, coordinator: LGRobokingCoordinator, entry: ConfigEntry) -> None:
+        """Initialize switch."""
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self._device_id}_button_lock"
+        self.entity_id = "switch.lg_roboking_button_lock"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if button lock is currently enabled."""
+        data = self.coordinator.data or {}
+        snapshot = data.get("snapshot") if isinstance(data.get("snapshot"), dict) else data
+        val = snapshot.get("BUTTON_LOCK")
+        if isinstance(val, bool):
+            return val
+        return str(val).lower() == "true"
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on Button Lock."""
+        _LOGGER.info("Enabling LG Roboking Button Lock")
+        await self.coordinator.async_set_button_lock(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off Button Lock."""
+        _LOGGER.info("Disabling LG Roboking Button Lock")
+        await self.coordinator.async_set_button_lock(False)
+
+
+class LGRobokingReCleanSwitch(LGRobokingBaseSwitch):
+    """Switch for Resume Cleaning After Recharge (TOGGLE_RECLEAN)."""
+
+    _attr_name = "로보킹 충전 후 청소 재개"
+    _attr_icon = "mdi:battery-sync"
+
+    def __init__(self, coordinator: LGRobokingCoordinator, entry: ConfigEntry) -> None:
+        """Initialize switch."""
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self._device_id}_reclean"
+        self.entity_id = "switch.lg_roboking_reclean"
+
+    @property
+    def is_on(self) -> bool:
+        """Return True if resume clean after recharge is enabled."""
+        data = self.coordinator.data or {}
+        snapshot = data.get("snapshot") if isinstance(data.get("snapshot"), dict) else data
+        val = snapshot.get("TOGGLE_RECLEAN") or snapshot.get("RECLEAN")
+        if isinstance(val, bool):
+            return val
+        return str(val).lower() == "true"
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on Resume Cleaning."""
+        _LOGGER.info("Enabling LG Roboking Resume Clean")
+        await self.coordinator.async_set_toggle_reclean(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off Resume Cleaning."""
+        _LOGGER.info("Disabling LG Roboking Resume Clean")
+        await self.coordinator.async_set_toggle_reclean(False)
