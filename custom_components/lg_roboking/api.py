@@ -427,3 +427,86 @@ class LGRobokingAPI:
             "dataGetList": None,
         }
         return await self.async_post_control(payload, sync=True)
+
+    async def async_send_control_command(
+        self,
+        ctrl_key: str = "Control",
+        command: str = "Set",
+        data_value: str | None = None,
+        data_set_list: dict[str, Any] | None = None,
+        sync: bool = True,
+    ) -> dict[str, Any]:
+        """Send generic Control command matching official ThinQ Web (my.lgthinq.com) specification."""
+        payload: dict[str, Any] = {
+            "ctrlKey": ctrl_key,
+            "command": command,
+            "dataKey": None,
+            "dataValue": data_value,
+            "dataSetList": data_set_list,
+            "dataGetList": None,
+        }
+        return await self.async_post_control(payload, sync=sync)
+
+    async def async_clean_start(self) -> dict[str, Any]:
+        """Start standard cleaning (CLEAN_START)."""
+        return await self.async_send_control_command("Control", "Set", data_value="CLEAN_START")
+
+    async def async_clean_pause(self) -> dict[str, Any]:
+        """Pause cleaning (PAUSE)."""
+        return await self.async_send_control_command("Control", "Set", data_value="PAUSE")
+
+    async def async_clean_stop(self) -> dict[str, Any]:
+        """Stop cleaning (CLEAN_STOP)."""
+        return await self.async_send_control_command("Control", "Set", data_value="CLEAN_STOP")
+
+    async def async_clean_resume(self) -> dict[str, Any]:
+        """Resume paused cleaning (CLEAN_RESUME)."""
+        return await self.async_send_control_command("Control", "Set", data_value="CLEAN_RESUME")
+
+    async def async_homing(self) -> dict[str, Any]:
+        """Return robot to charging station (HOMING)."""
+        return await self.async_send_control_command("Control", "Set", data_value="HOMING")
+
+    async def async_where_is_robot(self) -> dict[str, Any]:
+        """Trigger robot location sound/announcement (WHERE_IS_ROBOT)."""
+        return await self.async_send_control_command("Control", "Set", data_value="WHERE_IS_ROBOT")
+
+    async def async_clean_start_spot(self) -> dict[str, Any]:
+        """Start spot/focus cleaning around current position (CLEAN_START_SPOT)."""
+        return await self.async_send_control_command("Control", "Set", data_value="CLEAN_START_SPOT")
+
+    async def async_clean_rooms(self, room_ids: list[int | str]) -> dict[str, Any]:
+        """Clean selected rooms in sequence matching official ThinQ HomeTailor API."""
+        if not room_ids:
+            return await self.async_clean_start()
+        seq = ",".join(str(r) for r in room_ids)
+        body = {
+            "CMD": "CLEAN",
+            "NUM": len(room_ids),
+            "SEQ": seq,
+        }
+        return await self.async_send_control_command("Control", "HOMETAILOR", data_set_list=body)
+
+    async def async_station_dust_collect(self, start: bool = True) -> dict[str, Any]:
+        """Start or stop station dust collection (STATION_START / STATION_STOP)."""
+        cmd = "STATION_START" if start else "STATION_STOP"
+        return await self.async_send_control_command("Control", "Set", data_value=cmd)
+
+    async def async_mop_wash(self, start: bool = True) -> dict[str, Any]:
+        """Start or stop mop washing at station (MOPWASH_START / MOPWASH_STOP)."""
+        cmd = "MOPWASH_START" if start else "MOPWASH_STOP"
+        return await self.async_send_control_command("Control", "Set", data_value=cmd)
+
+    async def async_mop_dry(self, start: bool = True) -> dict[str, Any]:
+        """Start or stop mop hot-air drying at station (MOPDRY_START / MOPDRY_STOP)."""
+        cmd = "MOPDRY_START" if start else "MOPDRY_STOP"
+        return await self.async_send_control_command("Control", "Set", data_value=cmd)
+
+    async def async_set_doorsill_climbing(self, enable: bool) -> dict[str, Any]:
+        """Enable or disable doorsill climbing mode (DOORSILLCLIMBING:On / Off)."""
+        cmd = "DOORSILLCLIMBING:On" if enable else "DOORSILLCLIMBING:Off"
+        return await self.async_send_control_command("Control", "Set", data_value=cmd)
+
+    async def async_set_repeat(self, enable: bool) -> dict[str, Any]:
+        """Enable or disable repeat cleaning mode (REPEAT: 'true' / 'false')."""
+        return await self.async_send_control_command("Control", "Set", data_set_list={"REPEAT": "true" if enable else "false"})

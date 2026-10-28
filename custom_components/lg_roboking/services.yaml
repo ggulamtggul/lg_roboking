@@ -1,35 +1,104 @@
+clean_start:
+  name: 로보킹 청소 시작
+  description: 공식 ThinQ Web 프로토콜(CLEAN_START)을 통해 로보킹 청소를 시작합니다.
+
+pause:
+  name: 로보킹 청소 일시정지
+  description: 로보킹 청소를 일시정지(PAUSE)합니다.
+
+clean_stop:
+  name: 로보킹 청소 정지
+  description: 로보킹 청소를 완전히 정지(CLEAN_STOP)합니다.
+
+return_to_base:
+  name: 로보킹 충전 복귀
+  description: 로보킹을 충전 스테이션으로 복귀(HOMING)시킵니다.
+
+locate:
+  name: 로보킹 위치 찾기 (소리)
+  description: 로보킹에서 위치 알림 음성을 출력(WHERE_IS_ROBOT)합니다.
+
+clean_spot:
+  name: 로보킹 집중 청소
+  description: 현재 위치 주변을 집중 청소(CLEAN_START_SPOT)합니다.
+
+clean_rooms:
+  name: 로보킹 구역 지정 청소
+  description: 지정한 방 번호(구역)들을 순서대로 청소(HomeTailor API)합니다.
+  fields:
+    room_ids:
+      name: 방 번호 목록
+      description: 청소할 방 ID 리스트 (예: [3, 5])
+      required: true
+      example: [3, 5]
+      selector:
+        object:
+
+dust_collect:
+  name: 로보킹 먼지통 비움
+  description: 올인원 타워 스테이션의 먼지통 비움을 시작하거나 정지합니다.
+  fields:
+    start:
+      name: 동작 여부
+      description: true면 비움 시작(STATION_START), false면 비움 정지(STATION_STOP)
+      default: true
+      selector:
+        boolean:
+
+mop_wash:
+  name: 로보킹 물걸레 세척
+  description: 올인원 타워 스테이션에서 물걸레 세척을 시작하거나 정지합니다.
+  fields:
+    start:
+      name: 동작 여부
+      description: true면 세척 시작(MOPWASH_START), false면 세척 정지(MOPWASH_STOP)
+      default: true
+      selector:
+        boolean:
+
+mop_dry:
+  name: 로보킹 물걸레 열풍건조
+  description: 올인원 타워 스테이션에서 물걸레 열풍건조를 시작하거나 정지합니다.
+  fields:
+    start:
+      name: 동작 여부
+      description: true면 건조 시작(MOPDRY_START), false면 건조 정지(MOPDRY_STOP)
+      default: true
+      selector:
+        boolean:
+
 set_clean_mode:
-  name: 로보킹 청소 방식 설정
-  description: LG ThinQ 클라우드를 통해 로보킹 청소 방식을 직접 변경합니다 (도킹 상태에서 사용 권장).
+  name: 로보킹 청소 모드 설정
+  description: 청소 방식(먼지흡입+물걸레, 먼지흡입, 물걸레)을 변경합니다.
   fields:
     mode:
-      name: 청소 방식
-      description: "ALL (먼지 흡입 + 물걸레), SUCTION (먼지 흡입), MOP (물걸레)"
+      name: 청소 모드
+      description: "ALL (먼지흡입 + 물걸레), SUCTION (먼지흡입), MOP (물걸레)"
       required: true
       example: "ALL"
       selector:
         select:
           options:
-            - label: "먼지 흡입 + 물걸레 (ALL)"
+            - label: "먼지흡입 + 물걸레 (ALL)"
               value: "ALL"
-            - label: "먼지 흡입 (SUCTION)"
+            - label: "먼지흡입 (SUCTION)"
               value: "SUCTION"
             - label: "물걸레 (MOP)"
               value: "MOP"
 
 set_suction_level:
-  name: 로보킹 흡입 세기 설정
-  description: 청소기의 흡입 세기 모드를 변경합니다.
+  name: 로보킹 흡입력 세기 설정
+  description: 청소 흡입 모터 세기를 변경합니다.
   fields:
     level:
-      name: 흡입 세기
-      description: "QUIET (조용히), STANDARD (표준), STRONG (강하게), MAX (최대/터보)"
+      name: 흡입력 레벨
+      description: "QUIET (약), STANDARD (표준), STRONG (강하게), MAX (최대)"
       required: true
       example: "STANDARD"
       selector:
         select:
           options:
-            - label: "조용히 (QUIET)"
+            - label: "약 (QUIET)"
               value: "QUIET"
             - label: "표준 (STANDARD)"
               value: "STANDARD"
@@ -60,37 +129,62 @@ set_zz_dist:
               value: "DEEPSLOW"
 
 set_water_level:
-  name: 로보킹 물걸레 물 공급량 설정
-  description: 물걸레 청소 시 물 공급 단계를 설정합니다.
+  name: 로보킹 물걸레 물공급 레벨 설정
+  description: 물걸레 청소 시 물 공급 단계를 변경합니다.
   fields:
     level:
-      name: 물 공급량
-      description: "DRY (마른 걸레), LOW (적게 1단계), LOW1 (보통 2단계), HIGH (많이 3단계)"
+      name: 물공급 레벨
+      description: "DRY (마른 물걸레), LOW (약/1단계), LOW1 (중/2단계), HIGH (강/3단계)"
       required: true
-      example: "LOW1"
+      example: "LOW"
       selector:
         select:
           options:
-            - label: "마른 걸레 (DRY)"
+            - label: "마른 물걸레 (DRY)"
               value: "DRY"
-            - label: "적게 - 1단계 (LOW)"
+            - label: "약 / 1단계 (LOW)"
               value: "LOW"
-            - label: "보통 - 2단계 (LOW1)"
+            - label: "중 / 2단계 (LOW1)"
               value: "LOW1"
-            - label: "많이 - 3단계 (HIGH)"
+            - label: "강 / 3단계 (HIGH)"
               value: "HIGH"
 
 set_smart_turbo:
   name: 로보킹 스마트 터보 설정
-  description: 카펫 감지 시 자동 터보 작동 여부를 설정합니다.
+  description: 카펫 감지 시 자동으로 흡입력을 올리는 스마트 터보 모드를 On/Off 합니다.
   fields:
     enabled:
       name: 활성화 여부
-      description: 스마트 터보 사용 여부 (True 또는 False)
+      description: true (켜짐) 또는 false (꺼짐)
       required: true
+      example: true
+      selector:
+        boolean:
+
+set_doorsill_climbing:
+  name: 로보킹 문턱 넘기 설정
+  description: 문턱 등 장애물을 넘어가며 청소하는 모드를 On/Off 합니다.
+  fields:
+    enabled:
+      name: 활성화 여부
+      description: true (켜짐) 또는 false (꺼짐)
+      required: true
+      example: true
+      selector:
+        boolean:
+
+set_repeat:
+  name: 로보킹 반복 청소 설정
+  description: 청소를 2회 연속 수행하는 반복 청소 모드를 On/Off 합니다.
+  fields:
+    enabled:
+      name: 활성화 여부
+      description: true (켜짐) 또는 false (꺼짐)
+      required: true
+      example: true
       selector:
         boolean:
 
 wake_up:
-  name: 로보킹 절전모드 해제
-  description: 절전 상태에 들어간 로보킹을 원격으로 깨워 온라인 상태로 복귀시킵니다.
+  name: 로보킹 절전 해제 (WakeUp)
+  description: 절전(SLEEP) 모드에 진입한 로보킹을 깨워 즉시 명령을 수신할 수 있게 합니다.

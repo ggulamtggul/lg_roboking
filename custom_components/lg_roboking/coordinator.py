@@ -288,6 +288,83 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             current["snapshot"] = {**current["snapshot"], "WATERSUPPLY_LEVEL": water_level.upper()}
         self.async_set_updated_data(current)
 
+    async def async_clean_start(self) -> None:
+        """Start cleaning via official ThinQ Web API."""
+        await self.api.async_clean_start()
+        if self._map_loop_task is None or self._map_loop_task.done():
+            self._map_loop_task = self.hass.async_create_background_task(
+                self._run_map_heartbeat_loop(),
+                name=f"lg_roboking_map_loop_{self.entry.entry_id}",
+            )
+        await self.async_request_refresh()
+
+    async def async_clean_pause(self) -> None:
+        """Pause cleaning via official ThinQ Web API."""
+        await self.api.async_clean_pause()
+        await self.async_request_refresh()
+
+    async def async_clean_stop(self) -> None:
+        """Stop cleaning via official ThinQ Web API."""
+        await self.api.async_clean_stop()
+        await self.async_request_refresh()
+
+    async def async_clean_resume(self) -> None:
+        """Resume cleaning via official ThinQ Web API."""
+        await self.api.async_clean_resume()
+        await self.async_request_refresh()
+
+    async def async_homing(self) -> None:
+        """Return robot to base via official ThinQ Web API."""
+        await self.api.async_homing()
+        await self.async_request_refresh()
+
+    async def async_where_is_robot(self) -> None:
+        """Trigger robot locate sound via official ThinQ Web API."""
+        await self.api.async_where_is_robot()
+
+    async def async_clean_spot(self) -> None:
+        """Start spot cleaning via official ThinQ Web API."""
+        await self.api.async_clean_start_spot()
+        await self.async_request_refresh()
+
+    async def async_clean_rooms(self, room_ids: list[int | str]) -> None:
+        """Start cleaning selected rooms via official ThinQ HomeTailor API."""
+        await self.api.async_clean_rooms(room_ids)
+        await self.async_request_refresh()
+
+    async def async_station_dust_collect(self, start: bool = True) -> None:
+        """Start or stop station dust collection."""
+        await self.api.async_station_dust_collect(start=start)
+        await self.async_request_refresh()
+
+    async def async_mop_wash(self, start: bool = True) -> None:
+        """Start or stop station mop washing."""
+        await self.api.async_mop_wash(start=start)
+        await self.async_request_refresh()
+
+    async def async_mop_dry(self, start: bool = True) -> None:
+        """Start or stop station mop hot-air drying."""
+        await self.api.async_mop_dry(start=start)
+        await self.async_request_refresh()
+
+    async def async_set_doorsill_climbing(self, enable: bool) -> None:
+        """Enable or disable doorsill climbing mode."""
+        await self.api.async_set_doorsill_climbing(enable)
+        current = dict(self.data or {})
+        snapshot = dict(current.get("snapshot") or {})
+        snapshot["DOORSILLCLIMBING"] = "true" if enable else "false"
+        current["snapshot"] = snapshot
+        self.async_set_updated_data(current)
+
+    async def async_set_repeat(self, enable: bool) -> None:
+        """Enable or disable repeat cleaning mode."""
+        await self.api.async_set_repeat(enable)
+        current = dict(self.data or {})
+        snapshot = dict(current.get("snapshot") or {})
+        snapshot["REPEAT"] = "true" if enable else "false"
+        current["snapshot"] = snapshot
+        self.async_set_updated_data(current)
+
     async def async_wake_up(self) -> None:
         """Send WakeUp command to LG ThinQ cloud to wake the robot vacuum."""
         await self.api.async_wake_up()

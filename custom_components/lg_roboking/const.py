@@ -3,6 +3,7 @@ from homeassistant.const import Platform
 
 DOMAIN = "lg_roboking"
 PLATFORMS: list[Platform] = [
+    Platform.VACUUM,
     Platform.SELECT,
     Platform.BUTTON,
     Platform.SWITCH,
@@ -92,3 +93,18 @@ SERVICE_SET_SMART_TURBO = "set_smart_turbo"
 ATTR_MODE = "mode"
 ATTR_LEVEL = "level"
 ATTR_ENABLED = "enabled"
+
+SERVICE_CLEAN_START = "clean_start"
+SERVICE_PAUSE = "pause"
+SERVICE_CLEAN_STOP = "clean_stop"
+SERVICE_RETURN_TO_BASE = "return_to_base"
+SERVICE_LOCATE = "locate"
+SERVICE_CLEAN_SPOT = "clean_spot"
+SERVICE_CLEAN_ROOMS = "clean_rooms"
+SERVICE_DUST_COLLECT = "dust_collect"
+SERVICE_MOP_WASH = "mop_wash"
+SERVICE_MOP_DRY = "mop_dry"
+SERVICE_SET_DOORSILL_CLIMBING = "set_doorsill_climbing"
+SERVICE_SET_REPEAT = "set_repeat"
+
+ATTR_ROOM_IDS = "room_ids"
