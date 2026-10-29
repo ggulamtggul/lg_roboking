@@ -204,7 +204,7 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 except Exception as err:
                     _LOGGER.debug("Map heartbeat loop cycle exception: %s", err)
 
-                await asyncio.sleep(min(2, self.map_refresh_seconds))
+                await asyncio.sleep(max(3, self.map_refresh_seconds))
         except asyncio.CancelledError:
             pass
         finally:

@@ -23,7 +23,7 @@ DEFAULT_CLIENT_ID = "79b237256c9129df9f43207e279b4cf240926a6f3734d960740cd2b3846
 DEFAULT_API_KEY = "VGhpblEyLjAgU0VSVklDRQ=="
 DEFAULT_APP_VERSION = "5.2.1200"
 DEFAULT_SCAN_INTERVAL = 10  # minutes (background token/status sync)
-DEFAULT_MAP_REFRESH_INTERVAL = 2  # seconds (during active cleaning)
+DEFAULT_MAP_REFRESH_INTERVAL = 4  # seconds (during active cleaning)
 
 LEGACY_CONFIG_PATHS = [
     "/config/www/lg_roboking_config.json",
