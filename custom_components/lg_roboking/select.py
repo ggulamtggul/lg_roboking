@@ -68,6 +68,13 @@ class LGRobokingBaseSelect(CoordinatorEntity[LGRobokingCoordinator], SelectEntit
             model=model,
         )
 
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        if self.coordinator.data and "snapshot" in self.coordinator.data:
+            return True
+        return self.coordinator.last_update_success
+
 
 class LGRobokingCleanTypeSelect(LGRobokingBaseSelect):
     """Representation of LG Roboking Clean Mode Select entity."""

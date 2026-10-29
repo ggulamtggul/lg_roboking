@@ -66,6 +66,13 @@ class LGRobokingBaseButton(CoordinatorEntity[LGRobokingCoordinator], ButtonEntit
             model=model,
         )
 
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        if self.coordinator.data and "snapshot" in self.coordinator.data:
+            return True
+        return self.coordinator.last_update_success
+
 
 # ==========================================
 # 1. Cleaning Control Buttons

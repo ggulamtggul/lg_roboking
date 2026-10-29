@@ -68,6 +68,7 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.last_map_update_timestamp: float = 0.0
         self._map_loop_task: asyncio.Task | None = None
         self._is_closed = False
+        self._consecutive_failures = 0
 
         super().__init__(
             hass,
@@ -107,9 +108,10 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     _LOGGER.debug("Failed to update legacy config %s: %s", path, err)
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch latest status from LG ThinQ cloud."""
+        """Fetch latest status from LG ThinQ cloud with graceful error fallback."""
         try:
-            status = await self.api.async_get_device_status(force_token_refresh=True)
+            # Use cached access token; auto-refreshes only on 401 Unauthorized or expiry
+            status = await self.api.async_get_device_status(force_token_refresh=False)
             snapshot = status.get("snapshot", {})
 
             if "RT_MAP" in snapshot:
@@ -122,11 +124,21 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     _LOGGER.warning("Error rendering Roboking map image: %s", err)
 
             self._check_map_heartbeat_loop(status)
+            self._consecutive_failures = 0
             return status
-        except (LGRobokingAuthError, LGRobokingApiError) as err:
-            raise UpdateFailed(str(err)) from err
         except Exception as err:
-            raise UpdateFailed(f"Unexpected error communicating with LG ThinQ: {err}") from err
+            self._consecutive_failures += 1
+            # If we already have previous device state and failure is transient (< 3 consecutive),
+            # maintain previous data so entities do NOT flicker into 'unavailable'
+            if self.data and self._consecutive_failures < 3:
+                _LOGGER.warning(
+                    "LG ThinQ 클라우드 일시 통신 오류 (%d/3회): %s. 기존 정상 상태를 유지하여 엔티티 가용성을 보호합니다.",
+                    self._consecutive_failures,
+                    err,
+                )
+                return self.data
+
+            raise UpdateFailed(f"LG ThinQ 통신 오류 (연속 {self._consecutive_failures}회 실패): {err}") from err
 
     def is_robot_active(self, status: dict[str, Any] | None = None) -> bool:
         """Return True if robot is actively cleaning or moving."""
@@ -228,10 +240,13 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def async_get_or_render_map(self) -> bytes:
         """Return latest map PNG bytes, refreshing on-demand if cache is stale."""
         now = time.time()
-        # If cache is older than 1.5s (during active cleaning) or map_refresh_seconds, refresh immediately
-        refresh_threshold = 1.5 if self.is_robot_active() else self.map_refresh_seconds
+        is_active = self.is_robot_active()
+        # During active cleaning, refresh every 1.5s. When docked/idle, only refresh every 60s
+        refresh_threshold = 1.5 if is_active else 60.0
+
         if (now - self.last_map_update_timestamp) >= refresh_threshold:
-            await self.async_refresh_live_map()
+            if is_active or not self.last_rendered_map_png:
+                await self.async_refresh_live_map()
 
         if self.last_rendered_map_png:
             return self.last_rendered_map_png
