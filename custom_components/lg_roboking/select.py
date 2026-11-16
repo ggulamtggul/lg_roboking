@@ -1,7 +1,6 @@
 """Select platform for LG Roboking AI All-in-One settings and controls."""
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -242,14 +241,14 @@ class LGRobokingWaterSupplySelect(LGRobokingBaseSelect):
         await self.coordinator.async_set_water_supply_level(api_code)
 
 
-# (key, name, icon, snapshot key, {code: label}, code -> dataValue) from the modelJson ControlWifi actions.
+# (key, name, icon, snapshot key, {code: label}, code -> dataSetList) from the modelJson ControlWifi actions.
 SNAPSHOT_SELECTS = (
     ("volume_level", "로보킹 음량 설정", "mdi:volume-high", "VOLUME_LEVEL",
      {"MUTE": "무음", "LOW": "작게", "MEDIUM": "보통", "HIGH": "크게"},
-     lambda code: json.dumps({"VOLUME_LEVEL": f"VOLUME_{code}"})),
+     lambda code: {"VOLUME_LEVEL": f"VOLUME_{code}"}),
     ("carpet_avoid", "로보킹 카펫 회피", "mdi:rug", "CARPET_AVOID",
      {"AUTO": "자동", "AVOID": "피해서 청소", "IGNORE": "무시하고 청소"},
-     lambda code: json.dumps({"CARPET_AVOID": code})),
+     lambda code: {"CARPET_AVOID": code}),
 )
 
 
