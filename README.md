@@ -39,7 +39,7 @@
 | **Select** | `select.lg_roboking_volume_level` | 음성 음량: `무음`, `작게`, `보통`, `크게` |
 | **Select** | `select.lg_roboking_carpet_avoid` | 카펫 회피: `자동`, `피해서 청소`, `무시하고 청소` |
 | **Switch** | `switch.lg_roboking_station_auto` | 스테이션 자동 모드 (`STATION_SET` AUTO / MANUAL) |
-| **Switch** | `switch.lg_roboking_do_not_disturb` | 방해 금지 ON / OFF (시간대는 앱에서 정한 값 유지, 속성에 표시) |
+| **Sensor** | `sensor.lg_roboking_do_not_disturb` | 방해 금지(`19:00~08:50` 또는 `꺼짐`). 변경 명령 형식을 몰라 읽기 전용 |
 | **Sensor** | `sensor.lg_roboking_battery` | 배터리 잔량(%) — HA 2025.8부터 청소기 엔티티 자체 배터리 속성이 폐기되어 별도 센서로 제공 |
 | **Sensor** | `sensor.lg_roboking_status` | 현재 상태(공식 앱 한글 문구, 예: `충전 완료`, `물걸레 건조 중`). 속성 `raw`, `station_state` |
 | **Sensor** | `sensor.lg_roboking_mop_dry_end` | 물걸레 건조 완료 예정 시각(건조 중일 때만, `MOPDRY_INFO` 시작 시각 + 설정 시간) |

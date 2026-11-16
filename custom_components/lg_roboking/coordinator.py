@@ -417,10 +417,10 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.async_set_updated_data(current)
 
     async def async_set_snapshot_setting(
-        self, snapshot_key: str, value: Any, data_value: str, command: str = "Set"
+        self, snapshot_key: str, value: Any, data_set: dict[str, Any], command: str = "Set"
     ) -> None:
         """Send a setting whose current value lives at snapshot[snapshot_key], then update it optimistically."""
-        await self.api.async_send_control_command("Control", command, data_value=data_value)
+        await self.api.async_send_control_command("Control", command, data_set_list=data_set)
         current = dict(self.data or {})
         snapshot = dict(current.get("snapshot") or {})
         snapshot[snapshot_key] = value

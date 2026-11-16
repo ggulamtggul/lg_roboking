@@ -96,6 +96,15 @@ def _dry_end(s: dict[str, Any]) -> datetime | None:
     return datetime.fromtimestamp(start, tz=timezone.utc) + timedelta(hours=hours)
 
 
+def _dnd(s: dict[str, Any]) -> str | None:
+    info = s.get("DND_INFO") or {}
+    if not info:
+        return None
+    if str(info.get("SET", "")).upper() != "ON":
+        return "꺼짐"
+    return f"{info.get('START_TIME', '?')}~{info.get('END_TIME', '?')}"
+
+
 @dataclass(frozen=True, kw_only=True)
 class RobokingSensorDescription(SensorEntityDescription):
     """A sensor read from the ThinQ snapshot."""
@@ -148,6 +157,9 @@ SENSORS: tuple[RobokingSensorDescription, ...] = (
             ("side_brush", "SIDEBRUSH", "사이드 브러시", "mdi:broom"),
             ("mop", "MOP", "물걸레", "mdi:water-outline"),
         )
+    ),
+    RobokingSensorDescription(
+        key="do_not_disturb", name="로보킹 방해 금지", icon="mdi:sleep", value_fn=_dnd,
     ),
     RobokingSensorDescription(
         key="firmware", name="로보킹 펌웨어 버전", icon="mdi:chip",
