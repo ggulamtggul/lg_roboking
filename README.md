@@ -36,6 +36,7 @@
 | **Select** | `select.lg_roboking_clean_distance` | 청소 간격: `보통`, `꼼꼼`, `꼼꼼하고 천천히` |
 | **Select** | `select.lg_roboking_water_level` | 물 공급량: `마른 걸레`, `적게 (1단계)`, `보통 (2단계)`, `많이 (3단계)` |
 | **Switch** | `switch.lg_roboking_smart_turbo` | 카펫 감지 자동 스마트 터보 ON / OFF |
+| **Sensor** | `sensor.lg_roboking_battery` | 배터리 잔량(%) — HA 2025.8부터 청소기 엔티티 자체 배터리 속성이 폐기되어 별도 센서로 제공 (v1.3.5) |
 | **Button** | `button.lg_roboking_wake_up` | 절전 모드 해제 (WakeUp) |
 | **Button** | `button.lg_roboking_sync_from_cloud` | LG ThinQ 클라우드에서 최신 설정값 즉시 수동 동기화 |
 
