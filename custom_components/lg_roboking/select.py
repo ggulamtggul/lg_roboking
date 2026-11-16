@@ -1,6 +1,7 @@
 """Select platform for LG Roboking AI All-in-One settings and controls."""
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -44,6 +45,7 @@ async def async_setup_entry(
         LGRobokingSuctionSelect(coordinator, entry),
         LGRobokingZzDistSelect(coordinator, entry),
         LGRobokingWaterSupplySelect(coordinator, entry),
+        *(LGRobokingSnapshotSelect(coordinator, entry, *spec) for spec in SNAPSHOT_SELECTS),
     ])
 
 
@@ -238,3 +240,45 @@ class LGRobokingWaterSupplySelect(LGRobokingBaseSelect):
 
         _LOGGER.info("Setting LG Roboking water supply to %s (%s)", option, api_code)
         await self.coordinator.async_set_water_supply_level(api_code)
+
+
+# (key, name, icon, snapshot key, {code: label}, code -> dataValue) from the modelJson ControlWifi actions.
+SNAPSHOT_SELECTS = (
+    ("volume_level", "로보킹 음량 설정", "mdi:volume-high", "VOLUME_LEVEL",
+     {"MUTE": "무음", "LOW": "작게", "MEDIUM": "보통", "HIGH": "크게"},
+     lambda code: json.dumps({"VOLUME_LEVEL": f"VOLUME_{code}"})),
+    ("carpet_avoid", "로보킹 카펫 회피", "mdi:rug", "CARPET_AVOID",
+     {"AUTO": "자동", "AVOID": "피해서 청소", "IGNORE": "무시하고 청소"},
+     lambda code: json.dumps({"CARPET_AVOID": code})),
+)
+
+
+class LGRobokingSnapshotSelect(LGRobokingBaseSelect):
+    """A setting read from and written back to one snapshot key."""
+
+    def __init__(self, coordinator, entry, key, name, icon, snapshot_key, labels, to_data_value) -> None:
+        """Initialize the select."""
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self._device_id}_{key}"
+        self.entity_id = f"select.lg_roboking_{key}"
+        self._attr_name = name
+        self._attr_icon = icon
+        self._attr_options = list(labels.values())
+        self._snapshot_key = snapshot_key
+        self._labels = labels
+        self._to_data_value = to_data_value
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the current value as its label."""
+        snapshot = (self.coordinator.data or {}).get("snapshot") or {}
+        return self._labels.get(str(snapshot.get(self._snapshot_key) or "").upper())
+
+    async def async_select_option(self, option: str) -> None:
+        """Send the chosen value to LG ThinQ cloud."""
+        code = next((c for c, label in self._labels.items() if label == option), None)
+        if code is None:
+            raise ValueError(f"유효하지 않은 옵션입니다: {option}")
+        await self.coordinator.async_set_snapshot_setting(
+            self._snapshot_key, code, self._to_data_value(code)
+        )

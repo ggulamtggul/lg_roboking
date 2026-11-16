@@ -1,6 +1,7 @@
 """Switch platform for LG Roboking AI All-in-One settings via official ThinQ Web API."""
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -30,6 +31,8 @@ async def async_setup_entry(
         LGRobokingAiDetectionSwitch(coordinator, entry),
         LGRobokingButtonLockSwitch(coordinator, entry),
         LGRobokingReCleanSwitch(coordinator, entry),
+        LGRobokingStationAutoSwitch(coordinator, entry),
+        LGRobokingDoNotDisturbSwitch(coordinator, entry),
     ])
 
 
@@ -222,3 +225,79 @@ class LGRobokingReCleanSwitch(LGRobokingBaseSwitch):
         """Turn off Resume Cleaning."""
         _LOGGER.info("Disabling LG Roboking Resume Clean")
         await self.coordinator.async_set_toggle_reclean(False)
+
+
+def _snapshot(coordinator: LGRobokingCoordinator) -> dict[str, Any]:
+    return (coordinator.data or {}).get("snapshot") or {}
+
+
+class LGRobokingStationAutoSwitch(LGRobokingBaseSwitch):
+    """Station automatic mode (STATION_SET AUTO / MANUAL)."""
+
+    _attr_name = "로보킹 스테이션 자동 모드"
+    _attr_icon = "mdi:home-automation"
+
+    def __init__(self, coordinator: LGRobokingCoordinator, entry: ConfigEntry) -> None:
+        """Initialize switch."""
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self._device_id}_station_auto"
+        self.entity_id = "switch.lg_roboking_station_auto"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return True when the station runs automatically."""
+        value = str(_snapshot(self.coordinator).get("STATION_SET") or "").upper()
+        return value == "AUTO" if value else None
+
+    async def _set(self, mode: str) -> None:
+        await self.coordinator.async_set_snapshot_setting(
+            "STATION_SET", mode, json.dumps({"STATION_SET": mode})
+        )
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on station automatic mode."""
+        await self._set("AUTO")
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off station automatic mode."""
+        await self._set("MANUAL")
+
+
+class LGRobokingDoNotDisturbSwitch(LGRobokingBaseSwitch):
+    """Do-not-disturb on/off, keeping the time window set in the app (Control/DND)."""
+
+    _attr_name = "로보킹 방해 금지 모드"
+    _attr_icon = "mdi:sleep"
+
+    def __init__(self, coordinator: LGRobokingCoordinator, entry: ConfigEntry) -> None:
+        """Initialize switch."""
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{self._device_id}_dnd"
+        self.entity_id = "switch.lg_roboking_do_not_disturb"
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return True when do-not-disturb is enabled."""
+        info = _snapshot(self.coordinator).get("DND_INFO") or {}
+        return str(info.get("SET")).upper() == "ON" if info else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return the time window."""
+        info = _snapshot(self.coordinator).get("DND_INFO") or {}
+        return {"start_time": info.get("START_TIME"), "end_time": info.get("END_TIME")}
+
+    async def _set(self, on: bool) -> None:
+        info = dict(_snapshot(self.coordinator).get("DND_INFO") or {})
+        if not info.get("START_TIME") or not info.get("END_TIME"):
+            raise ValueError("방해 금지 시간이 아직 설정되지 않았습니다. LG ThinQ 앱에서 먼저 시간을 정해 주세요.")
+        info["SET"] = "ON" if on else "OFF"
+        await self.coordinator.async_set_snapshot_setting("DND_INFO", info, json.dumps(info), command="DND")
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn on do-not-disturb."""
+        await self._set(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn off do-not-disturb."""
+        await self._set(False)

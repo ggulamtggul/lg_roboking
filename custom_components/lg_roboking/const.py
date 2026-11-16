@@ -8,6 +8,7 @@ PLATFORMS: list[Platform] = [
     Platform.BUTTON,
     Platform.SWITCH,
     Platform.CAMERA,
+    Platform.SENSOR,
 ]
 
 CONF_DEVICE_ID = "device_id"

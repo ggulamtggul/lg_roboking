@@ -36,6 +36,17 @@
 | **Select** | `select.lg_roboking_clean_distance` | 청소 간격: `보통`, `꼼꼼`, `꼼꼼하고 천천히` |
 | **Select** | `select.lg_roboking_water_level` | 물 공급량: `마른 걸레`, `적게 (1단계)`, `보통 (2단계)`, `많이 (3단계)` |
 | **Switch** | `switch.lg_roboking_smart_turbo` | 카펫 감지 자동 스마트 터보 ON / OFF |
+| **Select** | `select.lg_roboking_volume_level` | 음성 음량: `무음`, `작게`, `보통`, `크게` |
+| **Select** | `select.lg_roboking_carpet_avoid` | 카펫 회피: `자동`, `피해서 청소`, `무시하고 청소` |
+| **Switch** | `switch.lg_roboking_station_auto` | 스테이션 자동 모드 (`STATION_SET` AUTO / MANUAL) |
+| **Switch** | `switch.lg_roboking_do_not_disturb` | 방해 금지 ON / OFF (시간대는 앱에서 정한 값 유지, 속성에 표시) |
+| **Sensor** | `sensor.lg_roboking_battery` | 배터리 잔량(%) — HA 2025.8부터 청소기 엔티티 자체 배터리 속성이 폐기되어 별도 센서로 제공 |
+| **Sensor** | `sensor.lg_roboking_status` | 현재 상태(공식 앱 한글 문구, 예: `충전 완료`, `물걸레 건조 중`). 속성 `raw`, `station_state` |
+| **Sensor** | `sensor.lg_roboking_mop_dry_end` | 물걸레 건조 완료 예정 시각(건조 중일 때만, `MOPDRY_INFO` 시작 시각 + 설정 시간) |
+| **Sensor** | `sensor.lg_roboking_mop_dry_hours` | 물걸레 건조 시간 설정(시간, 진단) |
+| **Sensor** | `sensor.lg_roboking_clean_time` / `sensor.lg_roboking_clean_area` | 청소 시간(분) / 청소 면적(m², 청소 중에만 값) |
+| **Sensor** | `sensor.lg_roboking_maint_dustbag` / `_filter` / `_main_brush` / `_side_brush` / `_mop` | 소모품 남은 수명(%). 속성 `used`, `limit`(원본 `MAINT_*` = 사용량\|한계) |
+| **Sensor** | `sensor.lg_roboking_firmware` | 펌웨어 버전(진단) |
 | **Button** | `button.lg_roboking_wake_up` | 절전 모드 해제 (WakeUp) |
 | **Button** | `button.lg_roboking_sync_from_cloud` | LG ThinQ 클라우드에서 최신 설정값 즉시 수동 동기화 |
 
