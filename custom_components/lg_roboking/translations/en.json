@@ -2,7 +2,19 @@
   "config": {
     "step": {
       "user": {
-        "title": "Connect LG Roboking AI All-in-One (ThinQ Web)",
+        "title": "Connect LG Roboking AI All-in-One",
+        "description": "Choose how to sign in to your LG account.",
+        "menu_options": {
+          "qr": "QR login with the ThinQ app (recommended)",
+          "token": "Enter Refresh Token manually"
+        }
+      },
+      "qr": {
+        "title": "QR login with the ThinQ app",
+        "description": "Scan the QR code below with the **LG ThinQ app** on your phone, approve the login, then press **Submit**.\n\n![QR code]({qr})\n\nOne-time number: **{pin}**\n\nThe QR code is valid for about 60 seconds. If it expires, press Submit to get a new one."
+      },
+      "token": {
+        "title": "Enter Refresh Token manually",
         "description": "Enter the Offline Refresh Token for LG ThinQ Web API (`kic-nscreen.lgthinq.com`).\nExisting config file status: **{legacy_detected}**\n(Leave Device ID empty to auto-discover registered vacuum).",
         "data": {
           "refresh_token": "Refresh Token (JWT)",
@@ -16,10 +28,13 @@
       "invalid_auth": "Authentication failed. Refresh Token is invalid or expired.",
       "cannot_connect": "Cannot connect to LG ThinQ cloud servers.",
       "no_device_found": "No Roboking vacuum found in your account. Please enter Device ID manually.",
-      "unknown": "An unknown error occurred."
+      "unknown": "An unknown error occurred.",
+      "qr_not_approved": "The login has not been approved in the ThinQ app yet. Scan and approve the QR code, then press Submit again.",
+      "qr_expired": "The QR code expired. Please scan the new QR code."
     },
     "abort": {
-      "already_configured": "This LG Roboking device is already configured."
+      "already_configured": "This LG Roboking device is already configured.",
+      "qr_failed": "QR login failed: {error}\nPlease try 'Enter Refresh Token manually' instead."
     }
   },
   "options": {
