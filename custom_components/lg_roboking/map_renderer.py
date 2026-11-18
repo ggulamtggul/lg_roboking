@@ -452,41 +452,6 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
             p2 = mm_to_canvas(line[1][0], line[1][1])
             draw.line([p1, p2], fill=(235, 75, 30, 255), width=2)
 
-    # 3. Sofa / Furniture Icons from FLOORMAP.AREA (Official app aesthetic)
-    floormap = snapshot.get("FLOORMAP") or {}
-    for area in floormap.get("AREA") or []:
-        pos = area.get("ICON_POS")
-        if pos and len(pos) >= 2:
-            ax, ay = mm_to_canvas(pos[0], pos[1])
-            if 0 <= ax < canvas_w and 0 <= ay < canvas_h:
-                sw, sh = 20, 14
-                # Pill background with translucent dark fill for high contrast over rooms
-                draw.rounded_rectangle(
-                    [ax - sw / 2 - 2, ay - sh / 2 - 2, ax + sw / 2 + 2, ay + sh / 2 + 2],
-                    radius=4,
-                    fill=(30, 32, 38, 200),
-                    outline=(255, 255, 255, 220),
-                    width=1,
-                )
-                # Inner sofa frame
-                draw.rounded_rectangle(
-                    [ax - sw / 2 + 2, ay - sh / 2 + 2, ax + sw / 2 - 2, ay + sh / 2 - 2],
-                    radius=2,
-                    outline=(255, 255, 255, 220),
-                    width=1,
-                )
-                # Sofa armrests
-                draw.line(
-                    [ax - sw / 2 + 5, ay - sh / 2 + 2, ax - sw / 2 + 5, ay + sh / 2 - 2],
-                    fill=(255, 255, 255, 220),
-                    width=1,
-                )
-                draw.line(
-                    [ax + sw / 2 - 5, ay - sh / 2 + 2, ax + sw / 2 - 5, ay + sh / 2 - 2],
-                    fill=(255, 255, 255, 220),
-                    width=1,
-                )
-
     # 4. Dock Position (HOME_POS) - High-visibility Cyan Dock Icon
     home_pos = rt_map.get("HOME_POS") or snapshot.get("HOME_POS")
     if home_pos and len(home_pos) >= 2:
