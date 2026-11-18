@@ -192,6 +192,25 @@ FALLBACK_PALETTE = [
 ]
 
 
+def _draw_dashed(draw: ImageDraw.ImageDraw, points: list[tuple[float, float]], fill, dash: float, gap: float) -> None:
+    """Draw a polyline as dashes, carrying the dash phase across vertices."""
+    on, left = True, dash
+    for (x1, y1), (x2, y2) in zip(points, points[1:]):
+        seg_len = math.hypot(x2 - x1, y2 - y1)
+        pos = 0.0
+        while pos < seg_len:
+            step = min(left, seg_len - pos)
+            if on:
+                t1, t2 = pos / seg_len, (pos + step) / seg_len
+                draw.line([(x1 + (x2 - x1) * t1, y1 + (y2 - y1) * t1),
+                           (x1 + (x2 - x1) * t2, y1 + (y2 - y1) * t2)], fill=fill, width=1)
+            pos += step
+            left -= step
+            if left <= 0:
+                on = not on
+                left = dash if on else gap
+
+
 def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
     """Render LG Roboking map snapshot to 1:1 official LG app aesthetic PNG."""
     rt_map = snapshot.get("RT_MAP") or {}
@@ -290,6 +309,9 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
 
     segments: list[list[tuple[float, float]]] = []
     current_segment: list[tuple[float, float]] = []
+    # Travel/homing/escape moves (type 2-4): drawn dashed, not as cleaned area.
+    nav_segments: list[list[tuple[float, float]]] = []
+    nav_segment: list[tuple[float, float]] = []
     prev_screen_pos: tuple[float, float] | None = None
     prev_raw_pt: tuple[float, float, float] | None = None
 
@@ -313,13 +335,28 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
         # A is True when transitioning between clean path and navigation/homing/escape
         A = (is_clean and was_nav) or (is_nav and was_clean)
 
-        # In cleanPath mode, skip navigation/homing/escape points
         if not is_clean:
             if len(current_segment) >= 2:
                 segments.append(current_segment)
             current_segment = []
+            if is_nav:
+                nx, ny = mm_to_canvas(m, f)
+                nx += SCALE / 2.0
+                ny += SCALE / 2.0
+                # Same pen-lift rule as clean paths: a long jump is a gap, not a move.
+                if nav_segment and math.hypot(nx - nav_segment[-1][0], ny - nav_segment[-1][1]) > 60.0:
+                    if len(nav_segment) >= 2:
+                        nav_segments.append(nav_segment)
+                    nav_segment = []
+                nav_segment.append((nx, ny))
+                # Start the next clean segment where the move ended.
+                prev_screen_pos = (nx, ny)
             prev_raw_pt = (m, f, p)
             continue
+
+        if len(nav_segment) >= 2:
+            nav_segments.append(nav_segment)
+        nav_segment = []
 
         cx, cy = mm_to_canvas(m, f)
         # Center of cell (0.5 * cell size) matching LG official webapp
@@ -355,6 +392,8 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
 
     if len(current_segment) >= 2:
         segments.append(current_segment)
+    if len(nav_segment) >= 2:
+        nav_segments.append(nav_segment)
 
     # -------------------------------------------------------------------------
     # 🌟 ALPHA OVERLAY LAYER: True Alpha Compositing for Semi-transparent Elements
@@ -396,6 +435,10 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
     # Pass 2: Crisp white center trajectory (0.5 * cellSize, #FFFFFF)
     for seg in segments:
         draw.line(seg, fill=(255, 255, 255, 240), width=1)
+
+    # Travel paths: light dashed line (4 px on, 4 px off) so they read as moves, not cleaning.
+    for seg in nav_segments:
+        _draw_dashed(draw, seg, fill=(255, 214, 102, 230), dash=4.0, gap=4.0)
 
     # Restricted Area Crisp Orange-Red Borders & Virtual Lines (width=2)
     for poly in vw.get("VERTX") or []:
