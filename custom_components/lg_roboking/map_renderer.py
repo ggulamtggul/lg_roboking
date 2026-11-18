@@ -470,7 +470,11 @@ def render_roboking_map(snapshot: dict[str, Any]) -> bytes:
     # is docked at HOME_POS and the separate robot icon is hidden (only the dock is shown).
     # This prevents showing a stale robot position in the last-cleaned room when it is actually charging.
     robot_state = str(snapshot.get("ROBOT_STATE", "")).upper().strip()
-    show_robot = robot_state not in ("STANDBY", "CHARGING", "SLEEP", "POWER_OFF", "")
+    # Station work (dust empty, mop wash/dry, water fill) also happens on the dock.
+    show_robot = robot_state not in (
+        "STANDBY", "CHARGING", "FINISHED_CHARGING", "SLEEP", "POWER_OFF", "",
+        "STATION", "STATION_MOP", "STATION_DRY", "WATER_INJECTION",
+    )
 
     rt_pose = snapshot.get("RT_POSE") or {}
     cur_pos = rt_pose.get("CUR_POS")
