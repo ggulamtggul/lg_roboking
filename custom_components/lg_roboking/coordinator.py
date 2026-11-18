@@ -42,6 +42,7 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the coordinator."""
         self.entry = entry
+        self.loaded_options = dict(entry.options)
         scan_minutes = entry.options.get(
             CONF_SCAN_INTERVAL,
             entry.data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
@@ -145,7 +146,9 @@ class LGRobokingCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         data = status or self.data or {}
         snapshot = data.get("snapshot") if isinstance(data.get("snapshot"), dict) else data
         robot_state = str(snapshot.get("ROBOT_STATE") or data.get("robot_state") or "").upper().strip()
-        inactive_states = ("STANDBY", "CHARGING", "SLEEP", "POWER_OFF", "")
+        # Docked for good: a 4 h mop dry must not keep the 4 s map heartbeat running.
+        # STATION / STATION_MOP / WATER_INJECTION stay active: they also happen mid-clean.
+        inactive_states = ("STANDBY", "CHARGING", "FINISHED_CHARGING", "STATION_DRY", "SLEEP", "POWER_OFF", "")
         if not robot_state:
             station_state = str(snapshot.get("STATION_STATE", "")).upper().strip()
             if station_state in ("START", "WORKING"):

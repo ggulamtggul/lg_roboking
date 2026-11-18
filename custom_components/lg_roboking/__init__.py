@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
 
 from .const import (
+    CONF_REFRESH_TOKEN,
     ATTR_ENABLED,
     ATTR_LEVEL,
     ATTR_MODE,
@@ -363,6 +364,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry when options change."""
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    # The coordinator saves each rotated refresh token into entry.data, which also fires
+    # this listener (about every 25 min); reloading then drops all entities for a moment.
+    if (
+        coordinator is not None
+        and entry.data.get(CONF_REFRESH_TOKEN) == coordinator.api.refresh_token
+        and dict(entry.options) == coordinator.loaded_options
+    ):
+        return
     await hass.config_entries.async_reload(entry.entry_id)
 
 
