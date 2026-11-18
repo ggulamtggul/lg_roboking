@@ -2,7 +2,19 @@
   "config": {
     "step": {
       "user": {
-        "title": "LG 로보킹 AI 올인원 (ThinQ Web) 연결",
+        "title": "LG 로보킹 AI 올인원 연결",
+        "description": "LG 계정 로그인 방법을 고르세요.",
+        "menu_options": {
+          "qr": "ThinQ 앱으로 QR 로그인 (권장)",
+          "token": "Refresh Token 직접 입력"
+        }
+      },
+      "qr": {
+        "title": "ThinQ 앱으로 QR 로그인",
+        "description": "휴대폰의 **LG ThinQ 앱**으로 아래 QR 코드를 찍어 로그인을 승인한 뒤 **확인**을 누르세요.\n\n![QR 코드]({qr})\n\n일회용 번호: **{pin}**\n\nQR 코드는 약 60초 동안 유효합니다. 만료되면 확인을 눌러 새 QR 코드를 받으세요."
+      },
+      "token": {
+        "title": "Refresh Token 직접 입력",
         "description": "LG ThinQ 웹 API(`kic-nscreen.lgthinq.com`)의 Offline Refresh Token을 입력해 주세요.\n기존 설정 파일 감지 상태: **{legacy_detected}**\n(기기 ID를 비워두면 계정에서 로보킹을 자동으로 탐색합니다.)",
         "data": {
           "refresh_token": "Refresh Token (JWT)",
@@ -16,10 +28,13 @@
       "invalid_auth": "Refresh Token 인증에 실패했습니다. 토큰이 만료되었거나 올바르지 않습니다.",
       "cannot_connect": "LG ThinQ 서버와 통신할 수 없습니다.",
       "no_device_found": "계정에서 로보킹 기기를 찾지 못했습니다. 기기 ID를 직접 입력해 주세요.",
-      "unknown": "알 수 없는 오류가 발생했습니다."
+      "unknown": "알 수 없는 오류가 발생했습니다.",
+      "qr_not_approved": "아직 ThinQ 앱에서 승인되지 않았습니다. QR 코드를 찍어 승인한 뒤 다시 확인을 눌러 주세요.",
+      "qr_expired": "QR 코드가 만료되었습니다. 새 QR 코드를 찍어 주세요."
     },
     "abort": {
-      "already_configured": "이미 등록된 로보킹 기기입니다."
+      "already_configured": "이미 등록된 로보킹 기기입니다.",
+      "qr_failed": "QR 로그인에 실패했습니다: {error}\n'Refresh Token 직접 입력'으로 다시 시도해 주세요."
     }
   },
   "options": {
